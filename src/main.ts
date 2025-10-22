@@ -5,6 +5,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { ResponseInterceptor } from './interceptors/response.interceptor';
 
 // Hàm khởi động ứng dụng bất đồng bộ
 async function bootstrap() {
@@ -15,6 +16,8 @@ async function bootstrap() {
   app.use(helmet());
   // Áp dụng ValidationPipe toàn cục để validate dữ liệu đầu vào
   app.useGlobalPipes(new ValidationPipe());
+  // Đăng ký ResponseInterceptor toàn cục để chuẩn hóa response
+  app.useGlobalInterceptors(new ResponseInterceptor());
 
   // Nếu đang ở môi trường development, cấu hình Swagger để tạo tài liệu API
   if (process.env.NODE_ENV === 'development') {
