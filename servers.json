@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Wavefy PostgreSQL",
+      "Group": "Databases",
+      "Host": "db",
+      "Port": 5432,
+      "MaintenanceDB": "postgres",
+      "Username": "wavefy_user",
+      "PassFile": "/pgpass",
+      "SSLMode": "prefer"
+    }
+  }
+}
