@@ -23,7 +23,7 @@ export class CreateUserDto {
   email_verified?: boolean;
 
   @IsString()
-  password_hash: string;
+  password: string;
 
   @IsEnum(SignupMethod)
   signup_method: SignupMethod;
@@ -52,7 +52,7 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
-  password_hash?: string;
+  password?: string;
 
   @IsOptional()
   @IsEnum(SignupMethod)
