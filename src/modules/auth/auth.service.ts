@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { User, SignupMethod } from '../users/user.entity';
 import { UserService } from '../users/user.service';
 import { RegisterDto, LoginDto } from './auth.dto';
+import { UserResponseDto } from '../users/user-response.dto';
 
 @Injectable()
 export class AuthService {
@@ -18,10 +19,9 @@ export class AuthService {
     private userRepository: Repository<User>,
   ) {}
 
-  async register(registerDto: RegisterDto): Promise<User> {
+  async register(registerDto: RegisterDto): Promise<UserResponseDto> {
     const { username, email, password } = registerDto;
 
-    // Check if user exists
     const exists = await this.userService.existsByEmailOrUsername(
       email,
       username,
@@ -30,7 +30,6 @@ export class AuthService {
       throw new ConflictException('User already exists');
     }
 
-    // Create user via userService
     const createUserDto = {
       username,
       email,
@@ -39,24 +38,28 @@ export class AuthService {
       last_name: '',
       signup_method: SignupMethod.LOCAL,
     };
+
     return this.userService.create(createUserDto);
   }
 
-  async login(loginDto: LoginDto): Promise<User> {
+  async login(loginDto: LoginDto): Promise<UserResponseDto> {
     const { email, password } = loginDto;
 
-    // Find user
-    const user = await this.userRepository.findOne({ where: { email } });
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password_hash')
+      .where('user.email = :email', { email })
+      .getOne();
+
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Check password
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return user;
+    return new UserResponseDto(user);
   }
 }

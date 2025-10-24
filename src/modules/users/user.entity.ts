@@ -1,3 +1,4 @@
+import { Exclude } from 'class-transformer';
 import { Entity } from 'typeorm';
 import { PrimaryGeneratedColumn } from 'typeorm';
 import { Column } from 'typeorm';
@@ -29,7 +30,8 @@ export class User {
   @Column({ default: false })
   email_verified: boolean;
 
-  @Column({ nullable: false })
+  @Exclude()
+  @Column({ nullable: false, select: false })
   password_hash: string;
 
   @Column({ type: 'enum', enum: SignupMethod, nullable: false })

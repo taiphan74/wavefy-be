@@ -1,3 +1,4 @@
+// modules/users/user.service.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -5,6 +6,7 @@ import * as bcrypt from 'bcrypt';
 import { User } from './user.entity';
 import { CreateUserDto, UpdateUserDto } from './user.dto';
 import { UserServiceAbstract } from './user.service.interface';
+import { UserResponseDto } from './user-response.dto';
 
 @Injectable()
 export class UserService extends UserServiceAbstract {
@@ -15,22 +17,25 @@ export class UserService extends UserServiceAbstract {
     super();
   }
 
-  async findAll(): Promise<User[]> {
-    return this.userRepository.find();
+  async findAll(): Promise<UserResponseDto[]> {
+    const users = await this.userRepository.find();
+    return users.map((user) => new UserResponseDto(user));
   }
 
-  async findOne(id: string): Promise<User | null> {
-    return this.userRepository.findOneBy({ id });
+  async findOne(id: string): Promise<UserResponseDto | null> {
+    const user = await this.userRepository.findOneBy({ id });
+    return user ? new UserResponseDto(user) : null;
   }
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
+  async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
     const { password, ...rest } = createUserDto;
     const password_hash = await bcrypt.hash(password, 10);
     const user = this.userRepository.create({ ...rest, password_hash });
-    return this.userRepository.save(user);
+    const savedUser = await this.userRepository.save(user);
+    return new UserResponseDto(savedUser);
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<UserResponseDto | null> {
     const { password, ...rest } = updateUserDto;
     if (password) {
       const password_hash = await bcrypt.hash(password, 10);
@@ -38,7 +43,8 @@ export class UserService extends UserServiceAbstract {
     } else {
       await this.userRepository.update(id, rest);
     }
-    return this.findOne(id);
+    const updatedUser = await this.findOne(id);
+    return updatedUser ? new UserResponseDto(updatedUser as any) : null;
   }
 
   async remove(id: string): Promise<void> {

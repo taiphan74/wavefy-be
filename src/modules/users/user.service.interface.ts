@@ -1,15 +1,15 @@
-import { User } from './user.entity';
+import { UserResponseDto } from './user-response.dto';
 import { CreateUserDto, UpdateUserDto } from './user.dto';
 
 export abstract class UserServiceAbstract {
   constructor() {}
 
-  abstract findAll(): Promise<User[]>;
-  abstract findOne(id: string): Promise<User | null>;
-  abstract create(createUserDto: CreateUserDto): Promise<User>;
+  abstract findAll(): Promise<UserResponseDto[]>;
+  abstract findOne(id: string): Promise<UserResponseDto | null>;
+  abstract create(createUserDto: CreateUserDto): Promise<UserResponseDto>;
   abstract update(
     id: string,
     updateUserDto: UpdateUserDto,
-  ): Promise<User | null>;
+  ): Promise<UserResponseDto | null>;
   abstract remove(id: string): Promise<void>;
 }
