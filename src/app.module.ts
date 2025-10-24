@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './app-modules/database.module';
+import { UsersModule } from './modules/users/user.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { databaseConfig, appConfig } from './config';
@@ -12,6 +13,7 @@ import { databaseConfig, appConfig } from './config';
       load: [databaseConfig, appConfig],
     }),
     DatabaseModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

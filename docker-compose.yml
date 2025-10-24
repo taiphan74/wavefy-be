@@ -5,6 +5,8 @@ services:
       POSTGRES_USER: wavefy_user
       POSTGRES_PASSWORD: wavefy_password
       POSTGRES_DB: wavefy_db
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

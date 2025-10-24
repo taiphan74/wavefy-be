@@ -26,6 +26,7 @@ async function bootstrap() {
       .setDescription('The Wavefy API description')
       .setVersion('1.0')
       .addTag('wavefy')
+      .addBearerAuth()
       .build();
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api', app, document);
@@ -42,4 +43,4 @@ async function bootstrap() {
   }
 }
 // Gọi hàm bootstrap để khởi động ứng dụng
-bootstrap();
+void bootstrap();
