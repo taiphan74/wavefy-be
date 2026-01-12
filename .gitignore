@@ -1,0 +1,27 @@
+# Binaries
+/bin/
+/build/
+/dist/
+/tmp/
+
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Dependency directories (optional)
+/vendor/
+
+# Tooling
+.air/
+
+# Environment
+.env
+
+# Editor
+.idea/
+.vscode/
