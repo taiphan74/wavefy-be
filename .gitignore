@@ -21,7 +21,9 @@
 
 # Environment
 .env
+config/.env
 
 # Editor
 .idea/
 .vscode/
+repomix-output.xml
