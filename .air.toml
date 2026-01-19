@@ -1,0 +1,14 @@
+# Air configuration for wavefy-be
+root = "."
+
+[build]
+  cmd = "go build -o ./tmp/api ./cmd/api"
+  bin = "./tmp/api"
+  include_ext = ["go", "tpl", "tmpl", "html"]
+  exclude_dir = ["tmp", "vendor", ".git"]
+
+[run]
+  cmd = "./tmp/api"
+
+[log]
+  time = true
