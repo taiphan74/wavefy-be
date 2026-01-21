@@ -8,8 +8,8 @@ import (
 	"wavefy-be/internal/handler"
 )
 
-// RunHTTP khởi tạo router và chạy HTTP server.
-func RunHTTP(addr string, db *sql.DB) error {
+// NewHTTP khởi tạo router.
+func NewHTTP(db *sql.DB) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
 
@@ -18,5 +18,5 @@ func RunHTTP(addr string, db *sql.DB) error {
 	api.GET("/health", h.Health)
 	api.GET("/db/ping", h.DBPing)
 
-	return r.Run(addr)
+	return r
 }

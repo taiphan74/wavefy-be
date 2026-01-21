@@ -1,13 +1,11 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
+
+	"wavefy-be/helper"
 )
 
 func (h *Handler) Health(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"status": "ok",
-	})
+	helper.RespondOK(c, gin.H{"message": "ok"})
 }

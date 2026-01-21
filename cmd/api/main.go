@@ -20,7 +20,8 @@ func main() {
 		_ = conn.Close()
 	}()
 
-	if err := app.RunHTTP(":"+cfg.Port, conn); err != nil {
+	server := app.NewHTTP(conn)
+	if err := server.Run(":" + cfg.Port); err != nil {
 		panic(err)
 	}
 }

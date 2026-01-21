@@ -4,26 +4,20 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	"wavefy-be/helper"
 )
 
 func (h *Handler) DBPing(c *gin.Context) {
 	if h.db == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status": "error",
-			"error":  "db not configured",
-		})
+		helper.RespondError(c, http.StatusServiceUnavailable, "db not configured")
 		return
 	}
 
 	if err := h.db.PingContext(c.Request.Context()); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status": "error",
-			"error":  err.Error(),
-		})
+		helper.RespondError(c, http.StatusServiceUnavailable, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"status": "ok",
-	})
+	helper.RespondOK(c, gin.H{"message": "ok"})
 }
