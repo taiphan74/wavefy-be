@@ -14,18 +14,23 @@ func Load() Config {
 
 	return Config{
 		Port:   getenv("PORT", "8080"),
-		AppEnv: getenv("APP_ENV", "development"),
+		AppEnv: getenvRequired("APP_ENV"),
 		DB: DBConfig{
-			Host:            getenv("DB_HOST", "localhost"),
-			Port:            getenv("DB_PORT", "5432"),
-			User:            getenv("DB_USER", "wavefy"),
-			Password:        getenv("DB_PASSWORD", "wavefy"),
-			Name:            getenv("DB_NAME", "wavefy"),
-			SSLMode:         getenv("DB_SSLMODE", "disable"),
+			Host:            getenvRequired("DB_HOST"),
+			Port:            getenvRequired("DB_PORT"),
+			User:            getenvRequired("DB_USER"),
+			Password:        getenvRequired("DB_PASSWORD"),
+			Name:            getenvRequired("DB_NAME"),
+			SSLMode:         getenvRequired("DB_SSLMODE"),
 			MaxOpenConns:    getenvInt("DB_MAX_OPEN_CONNS", 20),
 			MaxIdleConns:    getenvInt("DB_MAX_IDLE_CONNS", 5),
 			ConnMaxLifetime: getenvDuration("DB_CONN_MAX_LIFETIME", 30*time.Minute),
 			ConnMaxIdleTime: getenvDuration("DB_CONN_MAX_IDLE_TIME", 5*time.Minute),
+		},
+		Auth: AuthConfig{
+			JWTSecret:      getenvRequired("AUTH_JWT_SECRET"),
+			AccessTokenTTL: getenvDuration("AUTH_ACCESS_TOKEN_TTL", 24*time.Hour),
+			AccessTokenIss: getenvRequired("AUTH_ACCESS_TOKEN_ISSUER"),
 		},
 	}
 }
@@ -56,4 +61,11 @@ func getenvDuration(key string, fallback time.Duration) time.Duration {
 	}
 
 	return fallback
+}
+
+func getenvRequired(key string) string {
+	if value, ok := os.LookupEnv(key); ok && value != "" {
+		return value
+	}
+	panic("missing required env: " + key)
 }

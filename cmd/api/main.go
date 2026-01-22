@@ -32,7 +32,7 @@ func main() {
 	docs.SwaggerInfo.Host = "localhost:" + cfg.Port
 	docs.SwaggerInfo.BasePath = "/api"
 
-	server := app.NewHTTP(conn)
+	server := app.NewHTTP(conn, cfg.Auth)
 	if err := server.Run(":" + cfg.Port); err != nil {
 		panic(err)
 	}

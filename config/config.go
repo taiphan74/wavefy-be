@@ -6,6 +6,7 @@ type Config struct {
 	Port   string
 	AppEnv string
 	DB     DBConfig
+	Auth   AuthConfig
 }
 
 type DBConfig struct {
@@ -19,4 +20,10 @@ type DBConfig struct {
 	MaxIdleConns    int
 	ConnMaxLifetime time.Duration
 	ConnMaxIdleTime time.Duration
+}
+
+type AuthConfig struct {
+	JWTSecret       string
+	AccessTokenTTL  time.Duration
+	AccessTokenIss  string
 }
