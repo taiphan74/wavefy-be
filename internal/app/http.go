@@ -18,6 +18,7 @@ func NewHTTP(db *gorm.DB) *gin.Engine {
 	api := r.Group("/api")
 	api.GET("/health", h.Health)
 	api.GET("/db/ping", h.DBPing)
+	registerUserRoutes(api, db)
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
