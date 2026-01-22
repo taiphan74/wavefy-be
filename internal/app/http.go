@@ -4,6 +4,8 @@ import (
 	"database/sql"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"wavefy-be/internal/handler"
 )
@@ -17,6 +19,8 @@ func NewHTTP(db *sql.DB) *gin.Engine {
 	api := r.Group("/api")
 	api.GET("/health", h.Health)
 	api.GET("/db/ping", h.DBPing)
+
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	return r
 }

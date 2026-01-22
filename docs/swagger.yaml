@@ -1,0 +1,52 @@
+basePath: /api
+definitions:
+  helper.Response:
+    properties:
+      data: {}
+      error:
+        type: string
+      status:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API documentation for Wavefy BE
+  title: Wavefy API
+  version: "1.0"
+paths:
+  /db/ping:
+    get:
+      consumes:
+      - application/json
+      description: Check if database is reachable
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/helper.Response'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/helper.Response'
+      summary: Ping database
+      tags:
+      - db
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Check if service is up
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/helper.Response'
+      summary: Ping server
+      tags:
+      - health
+swagger: "2.0"
