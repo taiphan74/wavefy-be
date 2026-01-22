@@ -1,17 +1,16 @@
 package app
 
 import (
-	"database/sql"
-
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"gorm.io/gorm"
 
 	"wavefy-be/internal/handler"
 )
 
 // NewHTTP khởi tạo router.
-func NewHTTP(db *sql.DB) *gin.Engine {
+func NewHTTP(db *gorm.DB) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
 

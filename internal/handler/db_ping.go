@@ -23,7 +23,13 @@ func (h *Handler) DBPing(c *gin.Context) {
 		return
 	}
 
-	if err := h.db.PingContext(c.Request.Context()); err != nil {
+	sqlDB, err := h.db.DB()
+	if err != nil {
+		helper.RespondError(c, http.StatusServiceUnavailable, err.Error())
+		return
+	}
+
+	if err := sqlDB.PingContext(c.Request.Context()); err != nil {
 		helper.RespondError(c, http.StatusServiceUnavailable, err.Error())
 		return
 	}

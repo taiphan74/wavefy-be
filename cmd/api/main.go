@@ -23,7 +23,10 @@ func main() {
 		panic(err)
 	}
 	defer func() {
-		_ = conn.Close()
+		sqlDB, dbErr := conn.DB()
+		if dbErr == nil {
+			_ = sqlDB.Close()
+		}
 	}()
 
 	docs.SwaggerInfo.Host = "localhost:" + cfg.Port
