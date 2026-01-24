@@ -8,6 +8,7 @@ import (
 
 	"wavefy-be/config"
 	"wavefy-be/internal/handler"
+	"wavefy-be/internal/middleware"
 )
 
 // NewHTTP khởi tạo router.
@@ -19,8 +20,11 @@ func NewHTTP(db *gorm.DB, authCfg config.AuthConfig) *gin.Engine {
 	api := r.Group("/api")
 	api.GET("/health", h.Health)
 	api.GET("/db/ping", h.DBPing)
-	registerUserRoutes(api, db)
 	registerAuthRoutes(api, db, authCfg)
+
+	protected := api.Group("")
+	protected.Use(middleware.JWTAuth(authCfg))
+	registerUserRoutes(protected, db)
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
