@@ -11,6 +11,7 @@ import (
 	"wavefy-be/config"
 	"wavefy-be/docs"
 	"wavefy-be/internal/app"
+	"wavefy-be/internal/cache"
 	"wavefy-be/internal/db"
 )
 
@@ -27,6 +28,14 @@ func main() {
 		if dbErr == nil {
 			_ = sqlDB.Close()
 		}
+	}()
+
+	redisClient, err := cache.NewRedisClient(cfg.Redis)
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = redisClient.Close()
 	}()
 
 	docs.SwaggerInfo.Host = "localhost:" + cfg.Port

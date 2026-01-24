@@ -32,6 +32,11 @@ func Load() Config {
 			AccessTokenTTL: getenvDuration("AUTH_ACCESS_TOKEN_TTL", 24*time.Hour),
 			AccessTokenIss: getenvRequired("AUTH_ACCESS_TOKEN_ISSUER"),
 		},
+		Redis: RedisConfig{
+			Addr:     getenvRequired("REDIS_ADDR"),
+			Password: getenv("REDIS_PASSWORD", ""),
+			DB:       getenvInt("REDIS_DB", 0),
+		},
 	}
 }
 

@@ -7,6 +7,7 @@ type Config struct {
 	AppEnv string
 	DB     DBConfig
 	Auth   AuthConfig
+	Redis  RedisConfig
 }
 
 type DBConfig struct {
@@ -23,7 +24,13 @@ type DBConfig struct {
 }
 
 type AuthConfig struct {
-	JWTSecret       string
-	AccessTokenTTL  time.Duration
-	AccessTokenIss  string
+	JWTSecret      string
+	AccessTokenTTL time.Duration
+	AccessTokenIss string
+}
+
+type RedisConfig struct {
+	Addr     string
+	Password string
+	DB       int
 }

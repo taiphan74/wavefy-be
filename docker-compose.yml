@@ -16,6 +16,16 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+  redis:
+    image: redis:7-alpine
+    container_name: wavefy-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    command: ["redis-server", "--appendonly", "yes"]
 
 volumes:
   pgdata:
+  redisdata:
