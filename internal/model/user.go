@@ -13,6 +13,8 @@ type User struct {
 	LastName     string    `gorm:"size:100"`
 	Email        string    `gorm:"size:255;uniqueIndex;not null"`
 	PasswordHash string    `gorm:"size:255;not null"`
+	RoleID       uuid.UUID `gorm:"type:uuid;not null;index:idx_users_role_id"`
+	Role         Role      `gorm:"constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	DeletedAt    gorm.DeletedAt `gorm:"index"`

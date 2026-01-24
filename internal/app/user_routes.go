@@ -11,7 +11,8 @@ import (
 
 func registerUserRoutes(rg *gin.RouterGroup, db *gorm.DB) {
 	userRepo := repository.NewUserRepository(db)
-	userService := service.NewUserService(userRepo)
+	roleRepo := repository.NewRoleRepository(db)
+	userService := service.NewUserService(userRepo, roleRepo)
 	userHandler := handler.NewUserHandler(userService)
 
 	rg.GET("/users", userHandler.List)

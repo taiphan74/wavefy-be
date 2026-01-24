@@ -33,11 +33,12 @@ type UserService interface {
 }
 
 type userService struct {
-	repo repository.UserRepository
+	repo     repository.UserRepository
+	roleRepo repository.RoleRepository
 }
 
-func NewUserService(repo repository.UserRepository) UserService {
-	return &userService{repo: repo}
+func NewUserService(repo repository.UserRepository, roleRepo repository.RoleRepository) UserService {
+	return &userService{repo: repo, roleRepo: roleRepo}
 }
 
 func (s *userService) Create(ctx context.Context, input CreateUserInput) (*model.User, error) {
@@ -63,6 +64,15 @@ func (s *userService) Create(ctx context.Context, input CreateUserInput) (*model
 		Email:        input.Email,
 		PasswordHash: string(hash),
 	}
+
+	role, err := s.roleRepo.GetByName(ctx, "USER")
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrInvalidInput
+		}
+		return nil, err
+	}
+	user.RoleID = role.ID
 
 	if err := s.repo.Create(ctx, user); err != nil {
 		return nil, err
