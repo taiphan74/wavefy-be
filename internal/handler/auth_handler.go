@@ -2,10 +2,12 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"wavefy-be/config"
 	"wavefy-be/helper"
 	"wavefy-be/internal/dto"
 	"wavefy-be/internal/service"
@@ -13,10 +15,17 @@ import (
 
 type AuthHandler struct {
 	service service.AuthService
+	cfg     config.AuthConfig
 }
 
-func NewAuthHandler(service service.AuthService) *AuthHandler {
-	return &AuthHandler{service: service}
+const refreshCookieName = "refresh_token"
+const refreshCookiePath = "/api/auth/refresh"
+
+func NewAuthHandler(service service.AuthService, cfg config.AuthConfig) *AuthHandler {
+	return &AuthHandler{
+		service: service,
+		cfg:     cfg,
+	}
 }
 
 // Register godoc
@@ -54,12 +63,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	h.setRefreshCookie(c, token.RefreshToken)
+
 	helper.RespondOK(c, dto.AuthResponse{
-		AccessToken:  token.AccessToken,
-		RefreshToken: token.RefreshToken,
-		TokenType:    token.TokenType,
-		ExpiresAt:    token.ExpiresAt.Format(time.RFC3339),
-		User:         mapUserResponse(user),
+		AccessToken: token.AccessToken,
+		TokenType:   token.TokenType,
+		ExpiresAt:   token.ExpiresAt.Format(time.RFC3339),
+		User:        mapUserResponse(user),
 	})
 }
 
@@ -96,12 +106,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	h.setRefreshCookie(c, token.RefreshToken)
+
 	helper.RespondOK(c, dto.AuthResponse{
-		AccessToken:  token.AccessToken,
-		RefreshToken: token.RefreshToken,
-		TokenType:    token.TokenType,
-		ExpiresAt:    token.ExpiresAt.Format(time.RFC3339),
-		User:         mapUserResponse(user),
+		AccessToken: token.AccessToken,
+		TokenType:   token.TokenType,
+		ExpiresAt:   token.ExpiresAt.Format(time.RFC3339),
+		User:        mapUserResponse(user),
 	})
 }
 
@@ -118,13 +129,17 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // @Failure      500 {object} helper.Response
 // @Router       /auth/refresh [post]
 func (h *AuthHandler) Refresh(c *gin.Context) {
-	var req dto.RefreshRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		helper.RespondError(c, http.StatusBadRequest, "invalid request body")
-		return
+	refreshToken, err := c.Cookie(refreshCookieName)
+	if err != nil || refreshToken == "" {
+		var req dto.RefreshRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			helper.RespondError(c, http.StatusBadRequest, "invalid request body")
+			return
+		}
+		refreshToken = req.RefreshToken
 	}
 
-	user, token, err := h.service.Refresh(c.Request.Context(), req.RefreshToken)
+	user, token, err := h.service.Refresh(c.Request.Context(), refreshToken)
 	if err != nil {
 		switch err {
 		case service.ErrInvalidCredentials:
@@ -135,11 +150,42 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
+	h.setRefreshCookie(c, token.RefreshToken)
+
 	helper.RespondOK(c, dto.AuthResponse{
-		AccessToken:  token.AccessToken,
-		RefreshToken: token.RefreshToken,
-		TokenType:    token.TokenType,
-		ExpiresAt:    token.ExpiresAt.Format(time.RFC3339),
-		User:         mapUserResponse(user),
+		AccessToken: token.AccessToken,
+		TokenType:   token.TokenType,
+		ExpiresAt:   token.ExpiresAt.Format(time.RFC3339),
+		User:        mapUserResponse(user),
 	})
+}
+
+func (h *AuthHandler) setRefreshCookie(c *gin.Context, token string) {
+	if token == "" || h.cfg.RefreshTokenTTL <= 0 {
+		return
+	}
+
+	expiresAt := time.Now().UTC().Add(h.cfg.RefreshTokenTTL)
+	secure := isSecureRequest(c)
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     refreshCookieName,
+		Value:    token,
+		Path:     refreshCookiePath,
+		MaxAge:   int(h.cfg.RefreshTokenTTL.Seconds()),
+		Expires:  expiresAt,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func isSecureRequest(c *gin.Context) bool {
+	if c.Request.TLS != nil {
+		return true
+	}
+	if strings.EqualFold(c.GetHeader("X-Forwarded-Proto"), "https") {
+		return true
+	}
+	return false
 }
