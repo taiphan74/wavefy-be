@@ -6,13 +6,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	"wavefy-be/config"
 	"wavefy-be/internal/model"
 	"wavefy-be/internal/repository"
+	"wavefy-be/internal/token"
 )
 
 var (
@@ -22,6 +23,7 @@ var (
 type AuthService interface {
 	Register(ctx context.Context, input CreateUserInput) (*model.User, *AuthToken, error)
 	Login(ctx context.Context, input LoginInput) (*model.User, *AuthToken, error)
+	Refresh(ctx context.Context, refreshToken string) (*model.User, *AuthToken, error)
 }
 
 type LoginInput struct {
@@ -30,22 +32,27 @@ type LoginInput struct {
 }
 
 type AuthToken struct {
-	AccessToken string
-	ExpiresAt   time.Time
-	TokenType   string
+	AccessToken  string
+	RefreshToken string
+	ExpiresAt    time.Time
+	TokenType    string
 }
 
 type authService struct {
-	userService UserService
-	userRepo    repository.UserRepository
-	cfg         config.AuthConfig
+	userService  UserService
+	userRepo     repository.UserRepository
+	roleRepo     repository.RoleRepository
+	refreshStore token.RefreshTokenStore
+	cfg          config.AuthConfig
 }
 
-func NewAuthService(userService UserService, userRepo repository.UserRepository, cfg config.AuthConfig) AuthService {
+func NewAuthService(userService UserService, userRepo repository.UserRepository, roleRepo repository.RoleRepository, refreshStore token.RefreshTokenStore, cfg config.AuthConfig) AuthService {
 	return &authService{
-		userService: userService,
-		userRepo:    userRepo,
-		cfg:         cfg,
+		userService:  userService,
+		userRepo:     userRepo,
+		roleRepo:     roleRepo,
+		refreshStore: refreshStore,
+		cfg:          cfg,
 	}
 }
 
@@ -54,11 +61,25 @@ func (s *authService) Register(ctx context.Context, input CreateUserInput) (*mod
 	if err != nil {
 		return nil, nil, err
 	}
-	token, err := s.issueToken(user.ID.String())
+	role, err := s.roleRepo.GetByID(ctx, user.RoleID)
 	if err != nil {
 		return nil, nil, err
 	}
-	return user, token, nil
+	accessToken, expiresAt, err := token.IssueAccessToken(s.cfg, user.ID.String(), role.Name)
+	if err != nil {
+		return nil, nil, err
+	}
+	authToken := &AuthToken{
+		AccessToken: accessToken,
+		ExpiresAt:   expiresAt,
+		TokenType:   "Bearer",
+	}
+	refreshToken, err := s.refreshStore.Create(ctx, user.ID.String())
+	if err != nil {
+		return nil, nil, err
+	}
+	authToken.RefreshToken = refreshToken
+	return user, authToken, nil
 }
 
 func (s *authService) Login(ctx context.Context, input LoginInput) (*model.User, *AuthToken, error) {
@@ -79,31 +100,66 @@ func (s *authService) Login(ctx context.Context, input LoginInput) (*model.User,
 		return nil, nil, ErrInvalidCredentials
 	}
 
-	token, err := s.issueToken(user.ID.String())
+	role, err := s.roleRepo.GetByID(ctx, user.RoleID)
 	if err != nil {
 		return nil, nil, err
 	}
-	return user, token, nil
-}
-
-func (s *authService) issueToken(subject string) (*AuthToken, error) {
-	expiresAt := time.Now().UTC().Add(s.cfg.AccessTokenTTL)
-	claims := jwt.RegisteredClaims{
-		Subject:   subject,
-		ExpiresAt: jwt.NewNumericDate(expiresAt),
-		IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
-		Issuer:    s.cfg.AccessTokenIss,
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signed, err := token.SignedString([]byte(s.cfg.JWTSecret))
+	accessToken, expiresAt, err := token.IssueAccessToken(s.cfg, user.ID.String(), role.Name)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-
-	return &AuthToken{
-		AccessToken: signed,
+	authToken := &AuthToken{
+		AccessToken: accessToken,
 		ExpiresAt:   expiresAt,
 		TokenType:   "Bearer",
-	}, nil
+	}
+	refreshToken, err := s.refreshStore.Create(ctx, user.ID.String())
+	if err != nil {
+		return nil, nil, err
+	}
+	authToken.RefreshToken = refreshToken
+	return user, authToken, nil
+}
+
+func (s *authService) Refresh(ctx context.Context, refreshToken string) (*model.User, *AuthToken, error) {
+	userID, err := s.refreshStore.Verify(ctx, refreshToken)
+	if err != nil {
+		return nil, nil, ErrInvalidCredentials
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, nil, ErrInvalidCredentials
+	}
+
+	user, err := s.userRepo.GetByID(ctx, userUUID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, ErrInvalidCredentials
+		}
+		return nil, nil, err
+	}
+
+	role, err := s.roleRepo.GetByID(ctx, user.RoleID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	accessToken, expiresAt, err := token.IssueAccessToken(s.cfg, user.ID.String(), role.Name)
+	if err != nil {
+		return nil, nil, err
+	}
+	authToken := &AuthToken{
+		AccessToken: accessToken,
+		ExpiresAt:   expiresAt,
+		TokenType:   "Bearer",
+	}
+
+	newRefresh, err := s.refreshStore.Create(ctx, user.ID.String())
+	if err != nil {
+		return nil, nil, err
+	}
+	_ = s.refreshStore.Revoke(ctx, refreshToken)
+	authToken.RefreshToken = newRefresh
+	return user, authToken, nil
 }

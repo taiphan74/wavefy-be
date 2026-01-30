@@ -1,8 +1,10 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -28,9 +30,11 @@ func Load() Config {
 			ConnMaxIdleTime: getenvDuration("DB_CONN_MAX_IDLE_TIME", 5*time.Minute),
 		},
 		Auth: AuthConfig{
-			JWTSecret:      getenvRequired("AUTH_JWT_SECRET"),
-			AccessTokenTTL: getenvDuration("AUTH_ACCESS_TOKEN_TTL", 24*time.Hour),
-			AccessTokenIss: getenvRequired("AUTH_ACCESS_TOKEN_ISSUER"),
+			JWTSecret:          getenvRequired("AUTH_JWT_SECRET"),
+			AccessTokenTTL:     getenvDuration("AUTH_ACCESS_TOKEN_TTL", 24*time.Hour),
+			AccessTokenIss:     getenvRequired("AUTH_ACCESS_TOKEN_ISSUER"),
+			RefreshTokenTTL:    getenvDuration("AUTH_REFRESH_TOKEN_TTL", 7*24*time.Hour),
+			RefreshTokenSecret: getenvRequired("AUTH_REFRESH_TOKEN_SECRET"),
 		},
 		Redis: RedisConfig{
 			Addr:     getenvRequired("REDIS_ADDR"),
@@ -60,12 +64,29 @@ func getenvInt(key string, fallback int) int {
 
 func getenvDuration(key string, fallback time.Duration) time.Duration {
 	if value, ok := os.LookupEnv(key); ok && value != "" {
-		if parsed, err := time.ParseDuration(value); err == nil {
+		if parsed, err := parseHumanDuration(value); err == nil {
 			return parsed
 		}
 	}
 
 	return fallback
+}
+
+func parseHumanDuration(value string) (time.Duration, error) {
+	normalized := strings.TrimSpace(strings.ToLower(value))
+	if normalized == "" {
+		return 0, errors.New("invalid duration")
+	}
+	// Support days suffix (e.g. "7d") by converting to hours.
+	if strings.HasSuffix(normalized, "d") {
+		days := strings.TrimSuffix(normalized, "d")
+		n, err := strconv.Atoi(days)
+		if err != nil {
+			return 0, err
+		}
+		return time.Duration(n) * 24 * time.Hour, nil
+	}
+	return time.ParseDuration(normalized)
 }
 
 func getenvRequired(key string) string {

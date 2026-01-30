@@ -2,6 +2,7 @@ package app
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/gorm"
@@ -12,7 +13,7 @@ import (
 )
 
 // NewHTTP khởi tạo router.
-func NewHTTP(db *gorm.DB, authCfg config.AuthConfig) *gin.Engine {
+func NewHTTP(db *gorm.DB, redisClient *redis.Client, authCfg config.AuthConfig) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
 
@@ -20,7 +21,7 @@ func NewHTTP(db *gorm.DB, authCfg config.AuthConfig) *gin.Engine {
 	api := r.Group("/api")
 	api.GET("/health", h.Health)
 	api.GET("/db/ping", h.DBPing)
-	registerAuthRoutes(api, db, authCfg)
+	registerAuthRoutes(api, db, redisClient, authCfg)
 
 	protected := api.Group("")
 	protected.Use(middleware.JWTAuth(authCfg))

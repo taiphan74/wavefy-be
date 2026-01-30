@@ -55,10 +55,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	helper.RespondOK(c, dto.AuthResponse{
-		AccessToken: token.AccessToken,
-		TokenType:   token.TokenType,
-		ExpiresAt:   token.ExpiresAt.Format(time.RFC3339),
-		User:        mapUserResponse(user),
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+		TokenType:    token.TokenType,
+		ExpiresAt:    token.ExpiresAt.Format(time.RFC3339),
+		User:         mapUserResponse(user),
 	})
 }
 
@@ -96,9 +97,49 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	helper.RespondOK(c, dto.AuthResponse{
-		AccessToken: token.AccessToken,
-		TokenType:   token.TokenType,
-		ExpiresAt:   token.ExpiresAt.Format(time.RFC3339),
-		User:        mapUserResponse(user),
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+		TokenType:    token.TokenType,
+		ExpiresAt:    token.ExpiresAt.Format(time.RFC3339),
+		User:         mapUserResponse(user),
+	})
+}
+
+// Refresh godoc
+// @Summary      Refresh access token
+// @Description  Rotate refresh token and issue a new access token
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.RefreshRequest true "Refresh"
+// @Success      200 {object} helper.Response{data=dto.AuthResponse}
+// @Failure      400 {object} helper.Response
+// @Failure      401 {object} helper.Response
+// @Failure      500 {object} helper.Response
+// @Router       /auth/refresh [post]
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	var req dto.RefreshRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.RespondError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	user, token, err := h.service.Refresh(c.Request.Context(), req.RefreshToken)
+	if err != nil {
+		switch err {
+		case service.ErrInvalidCredentials:
+			helper.RespondError(c, http.StatusUnauthorized, err.Error())
+		default:
+			helper.RespondError(c, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	helper.RespondOK(c, dto.AuthResponse{
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+		TokenType:    token.TokenType,
+		ExpiresAt:    token.ExpiresAt.Format(time.RFC3339),
+		User:         mapUserResponse(user),
 	})
 }
