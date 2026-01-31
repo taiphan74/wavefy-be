@@ -8,6 +8,7 @@ type Config struct {
 	DB     DBConfig
 	Auth   AuthConfig
 	Redis  RedisConfig
+	Mail   MailConfig
 }
 
 type DBConfig struct {
@@ -35,4 +36,12 @@ type RedisConfig struct {
 	Addr     string
 	Password string
 	DB       int
+}
+
+type MailConfig struct {
+	Host string
+	Port int
+	User string
+	Pass string
+	From string
 }

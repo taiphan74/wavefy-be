@@ -1,8 +1,10 @@
 package app
 
 import (
-	"github.com/gin-gonic/gin"
+	"time"
+
 	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -11,7 +13,6 @@ import (
 	"wavefy-be/config"
 	"wavefy-be/internal/handler"
 	"wavefy-be/internal/middleware"
-	"time"
 )
 
 // NewHTTP khởi tạo router.

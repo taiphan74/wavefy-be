@@ -41,6 +41,13 @@ func Load() Config {
 			Password: getenv("REDIS_PASSWORD", ""),
 			DB:       getenvInt("REDIS_DB", 0),
 		},
+		Mail: MailConfig{
+			Host: getenv("SMTP_HOST", ""),
+			Port: getenvInt("SMTP_PORT", 0),
+			User: getenv("SMTP_USER", ""),
+			Pass: getenv("SMTP_PASS", ""),
+			From: getenv("SMTP_FROM", ""),
+		},
 	}
 }
 
