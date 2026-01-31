@@ -131,12 +131,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	refreshToken, err := c.Cookie(refreshCookieName)
 	if err != nil || refreshToken == "" {
-		var req dto.RefreshRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			helper.RespondError(c, http.StatusBadRequest, "invalid request body")
-			return
-		}
-		refreshToken = req.RefreshToken
+		helper.RespondError(c, http.StatusUnauthorized, "missing refresh token")
+		return
 	}
 
 	user, token, err := h.service.Refresh(c.Request.Context(), refreshToken)
@@ -160,6 +156,39 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	})
 }
 
+// Logout godoc
+// @Summary      Logout
+// @Description  Revoke refresh token and clear refresh cookie
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.RefreshRequest false "Refresh"
+// @Success      200 {object} helper.Response
+// @Failure      400 {object} helper.Response
+// @Failure      401 {object} helper.Response
+// @Failure      500 {object} helper.Response
+// @Router       /auth/logout [post]
+func (h *AuthHandler) Logout(c *gin.Context) {
+	refreshToken, err := c.Cookie(refreshCookieName)
+	if err != nil || refreshToken == "" {
+		helper.RespondError(c, http.StatusUnauthorized, "missing refresh token")
+		return
+	}
+
+	if err := h.service.Logout(c.Request.Context(), refreshToken); err != nil {
+		switch err {
+		case service.ErrInvalidCredentials:
+			helper.RespondError(c, http.StatusUnauthorized, err.Error())
+		default:
+			helper.RespondError(c, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	h.clearRefreshCookie(c)
+	helper.RespondOK(c, gin.H{"logged_out": true})
+}
+
 func (h *AuthHandler) setRefreshCookie(c *gin.Context, token string) {
 	if token == "" || h.cfg.RefreshTokenTTL <= 0 {
 		return
@@ -174,6 +203,20 @@ func (h *AuthHandler) setRefreshCookie(c *gin.Context, token string) {
 		Path:     refreshCookiePath,
 		MaxAge:   int(h.cfg.RefreshTokenTTL.Seconds()),
 		Expires:  expiresAt,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func (h *AuthHandler) clearRefreshCookie(c *gin.Context) {
+	secure := isSecureRequest(c)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     refreshCookieName,
+		Value:    "",
+		Path:     refreshCookiePath,
+		MaxAge:   -1,
+		Expires:  time.Unix(0, 0).UTC(),
 		HttpOnly: true,
 		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,

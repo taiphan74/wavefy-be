@@ -24,6 +24,7 @@ type AuthService interface {
 	Register(ctx context.Context, input CreateUserInput) (*model.User, *AuthToken, error)
 	Login(ctx context.Context, input LoginInput) (*model.User, *AuthToken, error)
 	Refresh(ctx context.Context, refreshToken string) (*model.User, *AuthToken, error)
+	Logout(ctx context.Context, refreshToken string) error
 }
 
 type LoginInput struct {
@@ -162,4 +163,11 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (*model.
 	_ = s.refreshStore.Revoke(ctx, refreshToken)
 	authToken.RefreshToken = newRefresh
 	return user, authToken, nil
+}
+
+func (s *authService) Logout(ctx context.Context, refreshToken string) error {
+	if refreshToken == "" {
+		return ErrInvalidCredentials
+	}
+	return s.refreshStore.Revoke(ctx, refreshToken)
 }
