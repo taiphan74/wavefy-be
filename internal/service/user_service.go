@@ -63,6 +63,7 @@ func (s *userService) Create(ctx context.Context, input CreateUserInput) (*model
 		ID:           uuid.New(),
 		Email:        input.Email,
 		PasswordHash: string(hash),
+		IsActive:     false,
 	}
 
 	role, err := s.roleRepo.GetByName(ctx, "USER")
@@ -73,6 +74,7 @@ func (s *userService) Create(ctx context.Context, input CreateUserInput) (*model
 		return nil, err
 	}
 	user.RoleID = role.ID
+	user.Role = *role
 
 	if err := s.repo.Create(ctx, user); err != nil {
 		return nil, err

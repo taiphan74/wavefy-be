@@ -76,6 +76,7 @@ func (s *authService) Register(ctx context.Context, input CreateUserInput) (*mod
 	if err != nil {
 		return nil, nil, err
 	}
+	user.Role = *role
 	accessToken, expiresAt, err := token.IssueAccessToken(s.cfg, user.ID.String(), role.Name)
 	if err != nil {
 		return nil, nil, err
@@ -115,6 +116,7 @@ func (s *authService) Login(ctx context.Context, input LoginInput) (*model.User,
 	if err != nil {
 		return nil, nil, err
 	}
+	user.Role = *role
 	accessToken, expiresAt, err := token.IssueAccessToken(s.cfg, user.ID.String(), role.Name)
 	if err != nil {
 		return nil, nil, err
@@ -155,6 +157,7 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (*model.
 	if err != nil {
 		return nil, nil, err
 	}
+	user.Role = *role
 
 	accessToken, expiresAt, err := token.IssueAccessToken(s.cfg, user.ID.String(), role.Name)
 	if err != nil {
