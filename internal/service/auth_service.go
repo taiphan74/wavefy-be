@@ -206,8 +206,12 @@ func (s *authService) ForgotPassword(ctx context.Context, email string) error {
 
 	subject := "Reset your password"
 	resetURL := fmt.Sprintf("http://localhost:3000/reset-password?token=%s", resetToken)
-	textBody := "Reset your password using this link: " + resetURL
-	htmlBody := fmt.Sprintf(`<p>Reset your password: <a href="%s">Reset Password</a></p>`, resetURL)
+	textBody := "Wavefy password reset link: " + resetURL
+	htmlBody, err := mail.RenderResetPasswordHTML(resetURL)
+	if err != nil {
+		_ = s.resetStore.Revoke(ctx, resetToken)
+		return err
+	}
 	if err := s.mailer.Send(user.Email, subject, textBody, htmlBody); err != nil {
 		_ = s.resetStore.Revoke(ctx, resetToken)
 		return err
