@@ -12,11 +12,12 @@ import (
 
 	"wavefy-be/config"
 	"wavefy-be/internal/handler"
+	"wavefy-be/internal/mail"
 	"wavefy-be/internal/middleware"
 )
 
 // NewHTTP khởi tạo router.
-func NewHTTP(db *gorm.DB, redisClient *redis.Client, authCfg config.AuthConfig) *gin.Engine {
+func NewHTTP(db *gorm.DB, redisClient *redis.Client, authCfg config.AuthConfig, mailer *mail.Service) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
 	r.Use(cors.New(cors.Config{
@@ -32,7 +33,7 @@ func NewHTTP(db *gorm.DB, redisClient *redis.Client, authCfg config.AuthConfig) 
 	api := r.Group("/api")
 	api.GET("/health", h.Health)
 	api.GET("/db/ping", h.DBPing)
-	registerAuthRoutes(api, db, redisClient, authCfg)
+	registerAuthRoutes(api, db, redisClient, authCfg, mailer)
 
 	protected := api.Group("")
 	protected.Use(middleware.JWTAuth(authCfg))

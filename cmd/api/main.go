@@ -13,6 +13,7 @@ import (
 	"wavefy-be/internal/app"
 	"wavefy-be/internal/cache"
 	"wavefy-be/internal/db"
+	"wavefy-be/internal/mail"
 )
 
 func main() {
@@ -41,7 +42,12 @@ func main() {
 	docs.SwaggerInfo.Host = "localhost:" + cfg.Port
 	docs.SwaggerInfo.BasePath = "/api"
 
-	server := app.NewHTTP(conn, redisClient, cfg.Auth)
+	mailer, err := mail.FromConfig(cfg.Mail)
+	if err != nil {
+		panic(err)
+	}
+
+	server := app.NewHTTP(conn, redisClient, cfg.Auth, mailer)
 	if err := server.Run(":" + cfg.Port); err != nil {
 		panic(err)
 	}

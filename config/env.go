@@ -30,11 +30,13 @@ func Load() Config {
 			ConnMaxIdleTime: getenvDuration("DB_CONN_MAX_IDLE_TIME", 5*time.Minute),
 		},
 		Auth: AuthConfig{
-			JWTSecret:          getenvRequired("AUTH_JWT_SECRET"),
-			AccessTokenTTL:     getenvDuration("AUTH_ACCESS_TOKEN_TTL", 24*time.Hour),
-			AccessTokenIss:     getenvRequired("AUTH_ACCESS_TOKEN_ISSUER"),
-			RefreshTokenTTL:    getenvDuration("AUTH_REFRESH_TOKEN_TTL", 7*24*time.Hour),
-			RefreshTokenSecret: getenvRequired("AUTH_REFRESH_TOKEN_SECRET"),
+			JWTSecret:           getenvRequired("AUTH_JWT_SECRET"),
+			AccessTokenTTL:      getenvDuration("AUTH_ACCESS_TOKEN_TTL", 24*time.Hour),
+			AccessTokenIss:      getenvRequired("AUTH_ACCESS_TOKEN_ISSUER"),
+			RefreshTokenTTL:     getenvDuration("AUTH_REFRESH_TOKEN_TTL", 7*24*time.Hour),
+			RefreshTokenSecret:  getenvRequired("AUTH_REFRESH_TOKEN_SECRET"),
+			PasswordResetTTL:    getenvDuration("AUTH_PASSWORD_RESET_TTL", 5*time.Minute),
+			PasswordResetSecret: getenvRequired("AUTH_PASSWORD_RESET_SECRET"),
 		},
 		Redis: RedisConfig{
 			Addr:     getenvRequired("REDIS_ADDR"),

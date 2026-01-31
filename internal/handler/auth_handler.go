@@ -156,6 +156,74 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	})
 }
 
+// ForgotPassword godoc
+// @Summary      Forgot password
+// @Description  Send reset password email
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.ForgotPasswordRequest true "Forgot password"
+// @Success      200 {object} helper.Response
+// @Failure      400 {object} helper.Response
+// @Failure      503 {object} helper.Response
+// @Failure      500 {object} helper.Response
+// @Router       /auth/forgot-password [post]
+func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	var req dto.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.RespondError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := h.service.ForgotPassword(c.Request.Context(), req.Email); err != nil {
+		switch err {
+		case service.ErrInvalidInput:
+			helper.RespondError(c, http.StatusBadRequest, err.Error())
+		case service.ErrMailNotConfigured:
+			helper.RespondError(c, http.StatusServiceUnavailable, err.Error())
+		default:
+			helper.RespondError(c, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	helper.RespondOK(c, gin.H{"sent": true})
+}
+
+// ResetPassword godoc
+// @Summary      Reset password
+// @Description  Reset password by token
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.ResetPasswordRequest true "Reset password"
+// @Success      200 {object} helper.Response
+// @Failure      400 {object} helper.Response
+// @Failure      401 {object} helper.Response
+// @Failure      500 {object} helper.Response
+// @Router       /auth/reset-password [post]
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	var req dto.ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.RespondError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := h.service.ResetPassword(c.Request.Context(), req.Token, req.Password); err != nil {
+		switch err {
+		case service.ErrInvalidInput:
+			helper.RespondError(c, http.StatusBadRequest, err.Error())
+		case service.ErrInvalidResetToken:
+			helper.RespondError(c, http.StatusUnauthorized, err.Error())
+		default:
+			helper.RespondError(c, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	helper.RespondOK(c, gin.H{"reset": true})
+}
+
 // Logout godoc
 // @Summary      Logout
 // @Description  Revoke refresh token and clear refresh cookie

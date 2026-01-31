@@ -25,11 +25,13 @@ type DBConfig struct {
 }
 
 type AuthConfig struct {
-	JWTSecret          string
-	AccessTokenTTL     time.Duration
-	AccessTokenIss     string
-	RefreshTokenTTL    time.Duration
-	RefreshTokenSecret string
+	JWTSecret           string
+	AccessTokenTTL      time.Duration
+	AccessTokenIss      string
+	RefreshTokenTTL     time.Duration
+	RefreshTokenSecret  string
+	PasswordResetTTL    time.Duration
+	PasswordResetSecret string
 }
 
 type RedisConfig struct {

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"wavefy-be/config"
+	"wavefy-be/internal/mail"
 	"wavefy-be/internal/model"
 	"wavefy-be/internal/repository"
 	"wavefy-be/internal/token"
@@ -18,6 +20,8 @@ import (
 
 var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrInvalidResetToken  = errors.New("invalid reset token")
+	ErrMailNotConfigured  = errors.New("mail not configured")
 )
 
 type AuthService interface {
@@ -25,6 +29,8 @@ type AuthService interface {
 	Login(ctx context.Context, input LoginInput) (*model.User, *AuthToken, error)
 	Refresh(ctx context.Context, refreshToken string) (*model.User, *AuthToken, error)
 	Logout(ctx context.Context, refreshToken string) error
+	ForgotPassword(ctx context.Context, email string) error
+	ResetPassword(ctx context.Context, token, password string) error
 }
 
 type LoginInput struct {
@@ -44,15 +50,19 @@ type authService struct {
 	userRepo     repository.UserRepository
 	roleRepo     repository.RoleRepository
 	refreshStore token.RefreshTokenStore
+	resetStore   token.PasswordResetTokenStore
+	mailer       *mail.Service
 	cfg          config.AuthConfig
 }
 
-func NewAuthService(userService UserService, userRepo repository.UserRepository, roleRepo repository.RoleRepository, refreshStore token.RefreshTokenStore, cfg config.AuthConfig) AuthService {
+func NewAuthService(userService UserService, userRepo repository.UserRepository, roleRepo repository.RoleRepository, refreshStore token.RefreshTokenStore, resetStore token.PasswordResetTokenStore, mailer *mail.Service, cfg config.AuthConfig) AuthService {
 	return &authService{
 		userService:  userService,
 		userRepo:     userRepo,
 		roleRepo:     roleRepo,
 		refreshStore: refreshStore,
+		resetStore:   resetStore,
+		mailer:       mailer,
 		cfg:          cfg,
 	}
 }
@@ -170,4 +180,76 @@ func (s *authService) Logout(ctx context.Context, refreshToken string) error {
 		return ErrInvalidCredentials
 	}
 	return s.refreshStore.Revoke(ctx, refreshToken)
+}
+
+func (s *authService) ForgotPassword(ctx context.Context, email string) error {
+	email = strings.TrimSpace(strings.ToLower(email))
+	if email == "" {
+		return ErrInvalidInput
+	}
+	if s.resetStore == nil || s.mailer == nil {
+		return ErrMailNotConfigured
+	}
+
+	user, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return err
+	}
+
+	resetToken, err := s.resetStore.Create(ctx, user.ID.String())
+	if err != nil {
+		return err
+	}
+
+	subject := "Reset your password"
+	resetURL := fmt.Sprintf("http://localhost:3000/reset-password?token=%s", resetToken)
+	textBody := "Reset your password using this link: " + resetURL
+	htmlBody := fmt.Sprintf(`<p>Reset your password: <a href="%s">Reset Password</a></p>`, resetURL)
+	if err := s.mailer.Send(user.Email, subject, textBody, htmlBody); err != nil {
+		_ = s.resetStore.Revoke(ctx, resetToken)
+		return err
+	}
+	return nil
+}
+
+func (s *authService) ResetPassword(ctx context.Context, resetToken, password string) error {
+	if strings.TrimSpace(resetToken) == "" || password == "" {
+		return ErrInvalidInput
+	}
+	if s.resetStore == nil {
+		return ErrInvalidResetToken
+	}
+
+	userID, err := s.resetStore.Verify(ctx, resetToken)
+	if err != nil {
+		return ErrInvalidResetToken
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return ErrInvalidResetToken
+	}
+
+	user, err := s.userRepo.GetByID(ctx, userUUID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrInvalidResetToken
+		}
+		return err
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	user.PasswordHash = string(hash)
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return err
+	}
+
+	_ = s.resetStore.Revoke(ctx, resetToken)
+	return nil
 }
