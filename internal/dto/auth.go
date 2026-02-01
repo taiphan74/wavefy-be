@@ -19,6 +19,10 @@ type ResetPasswordRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+type VerifyEmailRequest struct {
+	Token string `json:"token" binding:"required"`
+}
+
 type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 }

@@ -32,6 +32,8 @@ type AuthConfig struct {
 	RefreshTokenSecret  string
 	PasswordResetTTL    time.Duration
 	PasswordResetSecret string
+	VerifyEmailTTL      time.Duration
+	VerifyEmailSecret   string
 }
 
 type RedisConfig struct {

@@ -100,6 +100,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		switch err {
 		case service.ErrInvalidCredentials:
 			helper.RespondError(c, http.StatusUnauthorized, err.Error())
+		case service.ErrEmailNotVerified:
+			helper.RespondError(c, http.StatusForbidden, err.Error())
+		case service.ErrMailNotConfigured:
+			helper.RespondError(c, http.StatusServiceUnavailable, err.Error())
 		default:
 			helper.RespondError(c, http.StatusInternalServerError, err.Error())
 		}
@@ -222,6 +226,38 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	}
 
 	helper.RespondOK(c, gin.H{"reset": true})
+}
+
+// VerifyEmail godoc
+// @Summary      Verify email
+// @Description  Verify email by token
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.VerifyEmailRequest true "Verify email"
+// @Success      200 {object} helper.Response
+// @Failure      400 {object} helper.Response
+// @Failure      401 {object} helper.Response
+// @Failure      500 {object} helper.Response
+// @Router       /auth/verify-email [post]
+func (h *AuthHandler) VerifyEmail(c *gin.Context) {
+	var req dto.VerifyEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.RespondError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := h.service.VerifyEmail(c.Request.Context(), req.Token); err != nil {
+		switch err {
+		case service.ErrInvalidVerifyToken:
+			helper.RespondError(c, http.StatusUnauthorized, err.Error())
+		default:
+			helper.RespondError(c, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	helper.RespondOK(c, gin.H{"verified": true})
 }
 
 // Logout godoc

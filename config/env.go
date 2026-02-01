@@ -37,6 +37,8 @@ func Load() Config {
 			RefreshTokenSecret:  getenvRequired("AUTH_REFRESH_TOKEN_SECRET"),
 			PasswordResetTTL:    getenvDuration("AUTH_PASSWORD_RESET_TTL", 5*time.Minute),
 			PasswordResetSecret: getenvRequired("AUTH_PASSWORD_RESET_SECRET"),
+			VerifyEmailTTL:      getenvDuration("AUTH_VERIFY_EMAIL_TTL", 24*time.Hour),
+			VerifyEmailSecret:   getenvRequired("AUTH_VERIFY_EMAIL_SECRET"),
 		},
 		Redis: RedisConfig{
 			Addr:     getenvRequired("REDIS_ADDR"),

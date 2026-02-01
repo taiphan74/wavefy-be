@@ -19,7 +19,8 @@ func registerAuthRoutes(rg *gin.RouterGroup, db *gorm.DB, redisClient *redis.Cli
 	userService := service.NewUserService(userRepo, roleRepo)
 	refreshStore := token.NewRefreshTokenStore(redisClient, cfg.RefreshTokenSecret, cfg.RefreshTokenTTL)
 	resetStore := token.NewPasswordResetTokenStore(redisClient, cfg.PasswordResetSecret, cfg.PasswordResetTTL)
-	authService := service.NewAuthService(userService, userRepo, roleRepo, refreshStore, resetStore, mailer, cfg)
+	verifyStore := token.NewVerifyEmailTokenStore(redisClient, cfg.VerifyEmailSecret, cfg.VerifyEmailTTL)
+	authService := service.NewAuthService(userService, userRepo, roleRepo, refreshStore, resetStore, verifyStore, mailer, cfg)
 	authHandler := handler.NewAuthHandler(authService, cfg)
 
 	rg.POST("/auth/register", authHandler.Register)
@@ -28,4 +29,5 @@ func registerAuthRoutes(rg *gin.RouterGroup, db *gorm.DB, redisClient *redis.Cli
 	rg.POST("/auth/logout", authHandler.Logout)
 	rg.POST("/auth/forgot-password", authHandler.ForgotPassword)
 	rg.POST("/auth/reset-password", authHandler.ResetPassword)
+	rg.POST("/auth/verify-email", authHandler.VerifyEmail)
 }

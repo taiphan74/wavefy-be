@@ -22,6 +22,8 @@ var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrInvalidResetToken  = errors.New("invalid reset token")
 	ErrMailNotConfigured  = errors.New("mail not configured")
+	ErrInvalidVerifyToken = errors.New("invalid verify token")
+	ErrEmailNotVerified   = errors.New("email not verified")
 )
 
 type AuthService interface {
@@ -31,6 +33,7 @@ type AuthService interface {
 	Logout(ctx context.Context, refreshToken string) error
 	ForgotPassword(ctx context.Context, email string) error
 	ResetPassword(ctx context.Context, token, password string) error
+	VerifyEmail(ctx context.Context, token string) error
 }
 
 type LoginInput struct {
@@ -51,17 +54,19 @@ type authService struct {
 	roleRepo     repository.RoleRepository
 	refreshStore token.RefreshTokenStore
 	resetStore   token.PasswordResetTokenStore
+	verifyStore  token.VerifyEmailTokenStore
 	mailer       *mail.Service
 	cfg          config.AuthConfig
 }
 
-func NewAuthService(userService UserService, userRepo repository.UserRepository, roleRepo repository.RoleRepository, refreshStore token.RefreshTokenStore, resetStore token.PasswordResetTokenStore, mailer *mail.Service, cfg config.AuthConfig) AuthService {
+func NewAuthService(userService UserService, userRepo repository.UserRepository, roleRepo repository.RoleRepository, refreshStore token.RefreshTokenStore, resetStore token.PasswordResetTokenStore, verifyStore token.VerifyEmailTokenStore, mailer *mail.Service, cfg config.AuthConfig) AuthService {
 	return &authService{
 		userService:  userService,
 		userRepo:     userRepo,
 		roleRepo:     roleRepo,
 		refreshStore: refreshStore,
 		resetStore:   resetStore,
+		verifyStore:  verifyStore,
 		mailer:       mailer,
 		cfg:          cfg,
 	}
@@ -91,6 +96,11 @@ func (s *authService) Register(ctx context.Context, input CreateUserInput) (*mod
 		return nil, nil, err
 	}
 	authToken.RefreshToken = refreshToken
+
+	if err := s.sendVerifyEmail(ctx, user); err != nil {
+		return nil, nil, err
+	}
+
 	return user, authToken, nil
 }
 
@@ -110,6 +120,13 @@ func (s *authService) Login(ctx context.Context, input LoginInput) (*model.User,
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password)); err != nil {
 		return nil, nil, ErrInvalidCredentials
+	}
+
+	if !user.IsActive {
+		if err := s.sendVerifyEmail(ctx, user); err != nil {
+			return nil, nil, err
+		}
+		return nil, nil, ErrEmailNotVerified
 	}
 
 	role, err := s.roleRepo.GetByID(ctx, user.RoleID)
@@ -209,13 +226,12 @@ func (s *authService) ForgotPassword(ctx context.Context, email string) error {
 
 	subject := "Reset your password"
 	resetURL := fmt.Sprintf("http://localhost:3000/reset-password?token=%s", resetToken)
-	textBody := "Wavefy password reset link: " + resetURL
 	htmlBody, err := mail.RenderResetPasswordHTML(resetURL)
 	if err != nil {
 		_ = s.resetStore.Revoke(ctx, resetToken)
 		return err
 	}
-	if err := s.mailer.Send(user.Email, subject, textBody, htmlBody); err != nil {
+	if err := s.mailer.Send(user.Email, subject, "", htmlBody); err != nil {
 		_ = s.resetStore.Revoke(ctx, resetToken)
 		return err
 	}
@@ -258,5 +274,65 @@ func (s *authService) ResetPassword(ctx context.Context, resetToken, password st
 	}
 
 	_ = s.resetStore.Revoke(ctx, resetToken)
+	return nil
+}
+
+func (s *authService) VerifyEmail(ctx context.Context, verifyToken string) error {
+	if strings.TrimSpace(verifyToken) == "" {
+		return ErrInvalidVerifyToken
+	}
+	if s.verifyStore == nil {
+		return ErrInvalidVerifyToken
+	}
+
+	userID, err := s.verifyStore.Verify(ctx, verifyToken)
+	if err != nil {
+		return ErrInvalidVerifyToken
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return ErrInvalidVerifyToken
+	}
+
+	user, err := s.userRepo.GetByID(ctx, userUUID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrInvalidVerifyToken
+		}
+		return err
+	}
+
+	user.IsActive = true
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return err
+	}
+
+	_ = s.verifyStore.Revoke(ctx, verifyToken)
+	return nil
+}
+
+func (s *authService) sendVerifyEmail(ctx context.Context, user *model.User) error {
+	if s.verifyStore == nil || s.mailer == nil {
+		return ErrMailNotConfigured
+	}
+
+	verifyToken, err := s.verifyStore.Create(ctx, user.ID.String())
+	if err != nil {
+		return err
+	}
+
+	verifyURL := fmt.Sprintf("http://localhost:3000/verify-email?token=%s", verifyToken)
+	htmlBody, err := mail.RenderVerifyEmailHTML(verifyURL)
+	if err != nil {
+		_ = s.verifyStore.Revoke(ctx, verifyToken)
+		return err
+	}
+
+	subject := "Xác thực email Wavefy"
+	if err := s.mailer.Send(user.Email, subject, "", htmlBody); err != nil {
+		_ = s.verifyStore.Revoke(ctx, verifyToken)
+		return err
+	}
 	return nil
 }
