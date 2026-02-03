@@ -52,6 +52,12 @@ func Load() Config {
 			Pass: getenv("SMTP_PASS", ""),
 			From: getenv("SMTP_FROM", ""),
 		},
+		Google: GoogleOAuthConfig{
+			ClientID:      getenv("GOOGLE_CLIENT_ID", ""),
+			ClientSecret:  getenv("GOOGLE_CLIENT_SECRET", ""),
+			RedirectURL:   getenv("GOOGLE_REDIRECT_URL", ""),
+			OAuthStateTTL: getenvDuration("GOOGLE_OAUTH_STATE_TTL", 10*time.Minute),
+		},
 	}
 }
 

@@ -9,6 +9,7 @@ type Config struct {
 	Auth   AuthConfig
 	Redis  RedisConfig
 	Mail   MailConfig
+	Google GoogleOAuthConfig
 }
 
 type DBConfig struct {
@@ -48,4 +49,11 @@ type MailConfig struct {
 	User string
 	Pass string
 	From string
+}
+
+type GoogleOAuthConfig struct {
+	ClientID      string
+	ClientSecret  string
+	RedirectURL   string
+	OAuthStateTTL time.Duration
 }
