@@ -14,6 +14,7 @@ import (
 	"wavefy-be/internal/cache"
 	"wavefy-be/internal/db"
 	"wavefy-be/internal/mail"
+	"wavefy-be/internal/storage"
 )
 
 func main() {
@@ -47,7 +48,12 @@ func main() {
 		panic(err)
 	}
 
-	server := app.NewHTTP(conn, redisClient, cfg.Auth, mailer)
+	r2Client, err := storage.NewR2Client(ctx, cfg.R2)
+	if err != nil {
+		panic(err)
+	}
+
+	server := app.NewHTTP(conn, redisClient, cfg.Auth, mailer, r2Client, cfg.R2)
 	if err := server.Run(":" + cfg.Port); err != nil {
 		panic(err)
 	}

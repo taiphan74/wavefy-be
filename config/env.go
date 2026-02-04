@@ -58,6 +58,14 @@ func Load() Config {
 			RedirectURL:   getenv("GOOGLE_REDIRECT_URL", ""),
 			OAuthStateTTL: getenvDuration("GOOGLE_OAUTH_STATE_TTL", 10*time.Minute),
 		},
+		R2: R2Config{
+			AccountID:       getenvRequired("R2_ACCOUNT_ID"),
+			Bucket:          getenvRequired("R2_BUCKET"),
+			Region:          getenvRequired("R2_REGION"),
+			AccessKeyID:     getenvRequired("R2_ACCESS_KEY_ID"),
+			SecretAccessKey: getenvRequired("R2_SECRET_ACCESS_KEY"),
+			Endpoint:        getenvRequired("R2_ENDPOINT"),
+		},
 	}
 }
 
