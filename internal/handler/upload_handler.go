@@ -63,3 +63,87 @@ func (h *UploadHandler) PresignPut(c *gin.Context) {
 		Bucket:    out.Bucket,
 	})
 }
+
+// PresignGet godoc
+// @Summary      Get presigned GET URL
+// @Tags         uploads
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.PresignGetRequest true "Presign GET"
+// @Success      200 {object} helper.Response{data=dto.PresignGetResponse}
+// @Failure      400 {object} helper.Response
+// @Failure      503 {object} helper.Response
+// @Failure      500 {object} helper.Response
+// @Router       /uploads/presign-get [post]
+func (h *UploadHandler) PresignGet(c *gin.Context) {
+	var req dto.PresignGetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.RespondError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	out, err := h.service.PresignGet(c.Request.Context(), service.PresignGetInput{
+		Key:          req.Key,
+		ExpiresInSec: req.ExpiresInSec,
+	})
+	if err != nil {
+		switch err {
+		case service.ErrInvalidInput:
+			helper.RespondError(c, http.StatusBadRequest, err.Error())
+		case service.ErrStorageNotConfigured:
+			helper.RespondError(c, http.StatusServiceUnavailable, err.Error())
+		default:
+			helper.RespondError(c, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	helper.RespondOK(c, dto.PresignGetResponse{
+		URL:       out.URL,
+		Method:    out.Method,
+		Headers:   out.Headers,
+		ExpiresAt: out.ExpiresAt.Format(time.RFC3339),
+		Key:       out.Key,
+		Bucket:    out.Bucket,
+	})
+}
+
+// DeleteObject godoc
+// @Summary      Delete uploaded object
+// @Tags         uploads
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.DeleteObjectRequest true "Delete object"
+// @Success      200 {object} helper.Response{data=dto.DeleteObjectResponse}
+// @Failure      400 {object} helper.Response
+// @Failure      503 {object} helper.Response
+// @Failure      500 {object} helper.Response
+// @Router       /uploads/delete [post]
+func (h *UploadHandler) DeleteObject(c *gin.Context) {
+	var req dto.DeleteObjectRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.RespondError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	out, err := h.service.DeleteObject(c.Request.Context(), service.DeleteObjectInput{
+		Key: req.Key,
+	})
+	if err != nil {
+		switch err {
+		case service.ErrInvalidInput:
+			helper.RespondError(c, http.StatusBadRequest, err.Error())
+		case service.ErrStorageNotConfigured:
+			helper.RespondError(c, http.StatusServiceUnavailable, err.Error())
+		default:
+			helper.RespondError(c, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	helper.RespondOK(c, dto.DeleteObjectResponse{
+		Key:     out.Key,
+		Bucket:  out.Bucket,
+		Deleted: true,
+	})
+}

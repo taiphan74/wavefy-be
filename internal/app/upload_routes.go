@@ -14,4 +14,6 @@ func registerUploadRoutes(rg *gin.RouterGroup, r2Client *s3.Client, r2Cfg config
 	uploadHandler := handler.NewUploadHandler(uploadService)
 
 	rg.POST("/uploads/presign", uploadHandler.PresignPut)
+	rg.POST("/uploads/presign-get", uploadHandler.PresignGet)
+	rg.POST("/uploads/delete", uploadHandler.DeleteObject)
 }
