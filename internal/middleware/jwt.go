@@ -9,6 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	"wavefy-be/config"
+	"wavefy-be/internal/token"
 )
 
 func JWTAuth(cfg config.AuthConfig) gin.HandlerFunc {
@@ -25,7 +26,7 @@ func JWTAuth(cfg config.AuthConfig) gin.HandlerFunc {
 			return
 		}
 
-		claims := &jwt.RegisteredClaims{}
+		claims := &token.AccessTokenClaims{}
 		token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, errors.New("invalid signing method")
@@ -51,6 +52,7 @@ func JWTAuth(cfg config.AuthConfig) gin.HandlerFunc {
 		}
 
 		c.Set("auth_subject", claims.Subject)
+		c.Set("auth_role", claims.Role)
 		c.Next()
 	}
 }
