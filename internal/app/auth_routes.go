@@ -1,6 +1,8 @@
 package app
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -21,7 +23,8 @@ func registerAuthRoutes(rg *gin.RouterGroup, db *gorm.DB, redisClient *redis.Cli
 	refreshStore := token.NewRefreshTokenStore(redisClient, cfg.RefreshTokenSecret, cfg.RefreshTokenTTL)
 	resetStore := token.NewPasswordResetTokenStore(redisClient, cfg.PasswordResetSecret, cfg.PasswordResetTTL)
 	verifyStore := token.NewVerifyEmailTokenStore(redisClient, cfg.VerifyEmailSecret, cfg.VerifyEmailTTL)
-	authService := service.NewAuthService(userService, userRepo, roleRepo, refreshStore, resetStore, verifyStore, mailer, cfg)
+	loginStore := token.NewLoginAttemptStore(redisClient, 10*time.Minute, 15*time.Minute, 10)
+	authService := service.NewAuthService(userService, userRepo, roleRepo, refreshStore, resetStore, verifyStore, loginStore, mailer, cfg)
 	authHandler := handler.NewAuthHandler(authService, cfg)
 
 	rg.POST("/auth/register", authHandler.Register)

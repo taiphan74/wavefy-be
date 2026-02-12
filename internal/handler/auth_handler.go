@@ -100,6 +100,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		switch err {
 		case service.ErrInvalidCredentials:
 			helper.RespondError(c, http.StatusUnauthorized, err.Error())
+		case service.ErrTooManyAttempts:
+			helper.RespondError(c, http.StatusTooManyRequests, err.Error())
 		case service.ErrEmailNotVerified:
 			helper.RespondError(c, http.StatusForbidden, err.Error())
 		case service.ErrMailNotConfigured:

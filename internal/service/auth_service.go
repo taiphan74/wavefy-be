@@ -24,6 +24,7 @@ var (
 	ErrMailNotConfigured  = errors.New("mail not configured")
 	ErrInvalidVerifyToken = errors.New("invalid verify token")
 	ErrEmailNotVerified   = errors.New("email not verified")
+	ErrTooManyAttempts    = errors.New("too many login attempts")
 )
 
 type AuthService interface {
@@ -55,11 +56,12 @@ type authService struct {
 	refreshStore token.RefreshTokenStore
 	resetStore   token.PasswordResetTokenStore
 	verifyStore  token.VerifyEmailTokenStore
+	loginStore   token.LoginAttemptStore
 	mailer       *mail.Service
 	cfg          config.AuthConfig
 }
 
-func NewAuthService(userService UserService, userRepo repository.UserRepository, roleRepo repository.RoleRepository, refreshStore token.RefreshTokenStore, resetStore token.PasswordResetTokenStore, verifyStore token.VerifyEmailTokenStore, mailer *mail.Service, cfg config.AuthConfig) AuthService {
+func NewAuthService(userService UserService, userRepo repository.UserRepository, roleRepo repository.RoleRepository, refreshStore token.RefreshTokenStore, resetStore token.PasswordResetTokenStore, verifyStore token.VerifyEmailTokenStore, loginStore token.LoginAttemptStore, mailer *mail.Service, cfg config.AuthConfig) AuthService {
 	return &authService{
 		userService:  userService,
 		userRepo:     userRepo,
@@ -67,6 +69,7 @@ func NewAuthService(userService UserService, userRepo repository.UserRepository,
 		refreshStore: refreshStore,
 		resetStore:   resetStore,
 		verifyStore:  verifyStore,
+		loginStore:   loginStore,
 		mailer:       mailer,
 		cfg:          cfg,
 	}
@@ -110,16 +113,48 @@ func (s *authService) Login(ctx context.Context, input LoginInput) (*model.User,
 		return nil, nil, ErrInvalidCredentials
 	}
 
+	if s.loginStore != nil {
+		locked, err := s.loginStore.IsLocked(ctx, email)
+		if err != nil {
+			return nil, nil, err
+		}
+		if locked {
+			return nil, nil, ErrTooManyAttempts
+		}
+	}
+
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if s.loginStore != nil {
+				_, locked, err := s.loginStore.RecordFailure(ctx, email)
+				if err != nil {
+					return nil, nil, err
+				}
+				if locked {
+					return nil, nil, ErrTooManyAttempts
+				}
+			}
 			return nil, nil, ErrInvalidCredentials
 		}
 		return nil, nil, err
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password)); err != nil {
+		if s.loginStore != nil {
+			_, locked, err := s.loginStore.RecordFailure(ctx, email)
+			if err != nil {
+				return nil, nil, err
+			}
+			if locked {
+				return nil, nil, ErrTooManyAttempts
+			}
+		}
 		return nil, nil, ErrInvalidCredentials
+	}
+
+	if s.loginStore != nil {
+		_ = s.loginStore.Reset(ctx, email)
 	}
 
 	if !user.IsActive {
