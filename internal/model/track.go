@@ -14,6 +14,7 @@ type Track struct {
 	AlbumID      *uuid.UUID `gorm:"type:uuid;index:idx_tracks_album_id"`
 	Title        string     `gorm:"size:255;not null"`
 	AudioURL     string     `gorm:"size:800;not null"`
+	ImageURL     *string    `gorm:"size:800"`
 	DurationSec  int        `gorm:"not null"`
 	IsPublic     bool       `gorm:"not null;default:true"`
 	PlayCount    int64      `gorm:"type:bigint;not null;default:0"`

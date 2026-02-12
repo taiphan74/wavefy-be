@@ -24,11 +24,18 @@ func NewTrackHandler(service service.TrackService, uploadService service.UploadS
 }
 
 const trackKeyPrefix = "tracks/"
+const trackImageKeyPrefix = "tracks/images/"
 
 func newTrackObjectKey(contentType string) string {
 	base := uuid.NewString()
 	ext := trackExtFromContentType(contentType)
 	return trackKeyPrefix + base + ext
+}
+
+func newTrackImageObjectKey(contentType string) string {
+	base := uuid.NewString()
+	ext := trackImageExtFromContentType(contentType)
+	return trackImageKeyPrefix + base + ext
 }
 
 func trackExtFromContentType(contentType string) string {
@@ -53,9 +60,41 @@ func trackExtFromContentType(contentType string) string {
 	}
 }
 
+func trackImageExtFromContentType(contentType string) string {
+	ct := strings.ToLower(strings.TrimSpace(contentType))
+	switch ct {
+	case "image/jpeg", "image/jpg":
+		return ".jpg"
+	case "image/png":
+		return ".png"
+	case "image/webp":
+		return ".webp"
+	case "image/gif":
+		return ".gif"
+	case "image/svg+xml":
+		return ".svg"
+	case "image/avif":
+		return ".avif"
+	case "image/heic":
+		return ".heic"
+	case "image/heif":
+		return ".heif"
+	default:
+		return ""
+	}
+}
+
 func normalizeTrackKey(key string) (string, error) {
 	trimmed := strings.TrimSpace(key)
 	if trimmed == "" || !strings.HasPrefix(trimmed, trackKeyPrefix) {
+		return "", service.ErrInvalidInput
+	}
+	return trimmed, nil
+}
+
+func normalizeTrackImageKey(key string) (string, error) {
+	trimmed := strings.TrimSpace(key)
+	if trimmed == "" || !strings.HasPrefix(trimmed, trackImageKeyPrefix) {
 		return "", service.ErrInvalidInput
 	}
 	return trimmed, nil
@@ -202,6 +241,147 @@ func (h *TrackHandler) DeleteObject(c *gin.Context) {
 	})
 }
 
+// PresignImagePut godoc
+// @Summary      Get presigned PUT URL for track image
+// @Tags         tracks
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.PresignTrackImagePutRequest true "Presign PUT"
+// @Success      200 {object} helper.Response{data=dto.PresignPutResponse}
+// @Failure      400 {object} helper.Response
+// @Failure      503 {object} helper.Response
+// @Failure      500 {object} helper.Response
+// @Router       /tracks/image/presign [post]
+func (h *TrackHandler) PresignImagePut(c *gin.Context) {
+	var req dto.PresignTrackImagePutRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.RespondError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	out, err := h.uploadService.PresignPut(c.Request.Context(), service.PresignPutInput{
+		Key:          newTrackImageObjectKey(req.ContentType),
+		ContentType:  req.ContentType,
+		ExpiresInSec: req.ExpiresInSec,
+	})
+	if err != nil {
+		switch err {
+		case service.ErrInvalidInput:
+			helper.RespondError(c, http.StatusBadRequest, err.Error())
+		case service.ErrStorageNotConfigured:
+			helper.RespondError(c, http.StatusServiceUnavailable, err.Error())
+		default:
+			helper.RespondError(c, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	helper.RespondOK(c, dto.PresignPutResponse{
+		URL:       out.URL,
+		Method:    out.Method,
+		Headers:   out.Headers,
+		ExpiresAt: out.ExpiresAt.Format(time.RFC3339),
+		Key:       out.Key,
+		Bucket:    out.Bucket,
+	})
+}
+
+// PresignImageGet godoc
+// @Summary      Get presigned GET URL for track image
+// @Tags         tracks
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.PresignGetRequest true "Presign GET"
+// @Success      200 {object} helper.Response{data=dto.PresignGetResponse}
+// @Failure      400 {object} helper.Response
+// @Failure      503 {object} helper.Response
+// @Failure      500 {object} helper.Response
+// @Router       /tracks/image/presign-get [post]
+func (h *TrackHandler) PresignImageGet(c *gin.Context) {
+	var req dto.PresignGetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.RespondError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	key, err := normalizeTrackImageKey(req.Key)
+	if err != nil {
+		helper.RespondError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	out, err := h.uploadService.PresignGet(c.Request.Context(), service.PresignGetInput{
+		Key:          key,
+		ExpiresInSec: req.ExpiresInSec,
+	})
+	if err != nil {
+		switch err {
+		case service.ErrInvalidInput:
+			helper.RespondError(c, http.StatusBadRequest, err.Error())
+		case service.ErrStorageNotConfigured:
+			helper.RespondError(c, http.StatusServiceUnavailable, err.Error())
+		default:
+			helper.RespondError(c, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	helper.RespondOK(c, dto.PresignGetResponse{
+		URL:       out.URL,
+		Method:    out.Method,
+		Headers:   out.Headers,
+		ExpiresAt: out.ExpiresAt.Format(time.RFC3339),
+		Key:       out.Key,
+		Bucket:    out.Bucket,
+	})
+}
+
+// DeleteImageObject godoc
+// @Summary      Delete uploaded track image
+// @Tags         tracks
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.DeleteObjectRequest true "Delete object"
+// @Success      200 {object} helper.Response{data=dto.DeleteObjectResponse}
+// @Failure      400 {object} helper.Response
+// @Failure      503 {object} helper.Response
+// @Failure      500 {object} helper.Response
+// @Router       /tracks/image/delete [post]
+func (h *TrackHandler) DeleteImageObject(c *gin.Context) {
+	var req dto.DeleteObjectRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.RespondError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	key, err := normalizeTrackImageKey(req.Key)
+	if err != nil {
+		helper.RespondError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	out, err := h.uploadService.DeleteObject(c.Request.Context(), service.DeleteObjectInput{
+		Key: key,
+	})
+	if err != nil {
+		switch err {
+		case service.ErrInvalidInput:
+			helper.RespondError(c, http.StatusBadRequest, err.Error())
+		case service.ErrStorageNotConfigured:
+			helper.RespondError(c, http.StatusServiceUnavailable, err.Error())
+		default:
+			helper.RespondError(c, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	helper.RespondOK(c, dto.DeleteObjectResponse{
+		Key:     out.Key,
+		Bucket:  out.Bucket,
+		Deleted: true,
+	})
+}
+
 // GetTrack godoc
 // @Summary      Get track by id
 // @Tags         tracks
@@ -282,6 +462,7 @@ func (h *TrackHandler) Create(c *gin.Context) {
 		AlbumID:      req.AlbumID,
 		Title:        req.Title,
 		AudioURL:     req.AudioURL,
+		ImageURL:     req.ImageURL,
 		DurationSec:  req.DurationSec,
 		IsPublic:     req.IsPublic,
 	})
@@ -327,6 +508,7 @@ func (h *TrackHandler) Update(c *gin.Context) {
 		AlbumID:     req.AlbumID,
 		Title:       req.Title,
 		AudioURL:    req.AudioURL,
+		ImageURL:    req.ImageURL,
 		DurationSec: req.DurationSec,
 		IsPublic:    req.IsPublic,
 	})
@@ -388,6 +570,7 @@ func mapTrackResponse(track *model.Track) dto.TrackResponse {
 		AlbumID:      albumID,
 		Title:        track.Title,
 		AudioURL:     track.AudioURL,
+		ImageURL:     track.ImageURL,
 		DurationSec:  track.DurationSec,
 		IsPublic:     track.IsPublic,
 		PlayCount:    track.PlayCount,

@@ -5,6 +5,11 @@ type PresignTrackPutRequest struct {
 	ExpiresInSec *int   `json:"expires_in_sec"`
 }
 
+type PresignTrackImagePutRequest struct {
+	ContentType  string `json:"content_type"`
+	ExpiresInSec *int   `json:"expires_in_sec"`
+}
+
 type PresignPutResponse struct {
 	URL       string            `json:"url"`
 	Method    string            `json:"method"`

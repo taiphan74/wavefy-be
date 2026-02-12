@@ -5,6 +5,7 @@ type CreateTrackRequest struct {
 	AlbumID      *string `json:"album_id"`
 	Title        string  `json:"title" binding:"required"`
 	AudioURL     string  `json:"audio_url" binding:"required"`
+	ImageURL     *string `json:"image_url"`
 	DurationSec  int     `json:"duration_sec" binding:"required"`
 	IsPublic     *bool   `json:"is_public"`
 }
@@ -13,6 +14,7 @@ type UpdateTrackRequest struct {
 	AlbumID     *string `json:"album_id"`
 	Title       *string `json:"title"`
 	AudioURL    *string `json:"audio_url"`
+	ImageURL    *string `json:"image_url"`
 	DurationSec *int    `json:"duration_sec"`
 	IsPublic    *bool   `json:"is_public"`
 }
@@ -23,6 +25,7 @@ type TrackResponse struct {
 	AlbumID      *string `json:"album_id,omitempty"`
 	Title        string  `json:"title"`
 	AudioURL     string  `json:"audio_url"`
+	ImageURL     *string `json:"image_url,omitempty"`
 	DurationSec  int     `json:"duration_sec"`
 	IsPublic     bool    `json:"is_public"`
 	PlayCount    int64   `json:"play_count"`

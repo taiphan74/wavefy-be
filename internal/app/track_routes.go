@@ -27,4 +27,8 @@ func registerTrackRoutes(rg *gin.RouterGroup, db *gorm.DB, r2Client *s3.Client, 
 	rg.POST("/tracks/audio/presign", trackHandler.PresignPut)
 	rg.POST("/tracks/audio/presign-get", trackHandler.PresignGet)
 	rg.POST("/tracks/audio/delete", trackHandler.DeleteObject)
+
+	rg.POST("/tracks/image/presign", trackHandler.PresignImagePut)
+	rg.POST("/tracks/image/presign-get", trackHandler.PresignImageGet)
+	rg.POST("/tracks/image/delete", trackHandler.DeleteImageObject)
 }

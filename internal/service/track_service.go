@@ -17,6 +17,7 @@ type CreateTrackInput struct {
 	AlbumID      *string
 	Title        string
 	AudioURL     string
+	ImageURL     *string
 	DurationSec  int
 	IsPublic     *bool
 }
@@ -25,6 +26,7 @@ type UpdateTrackInput struct {
 	AlbumID     *string
 	Title       *string
 	AudioURL    *string
+	ImageURL    *string
 	DurationSec *int
 	IsPublic    *bool
 }
@@ -69,6 +71,15 @@ func (s *trackService) Create(ctx context.Context, input CreateTrackInput) (*mod
 		return nil, ErrInvalidInput
 	}
 
+	var imageURL *string
+	if input.ImageURL != nil {
+		value := strings.TrimSpace(*input.ImageURL)
+		if value == "" {
+			return nil, ErrInvalidInput
+		}
+		imageURL = &value
+	}
+
 	if input.DurationSec <= 0 {
 		return nil, ErrInvalidInput
 	}
@@ -96,6 +107,7 @@ func (s *trackService) Create(ctx context.Context, input CreateTrackInput) (*mod
 		AlbumID:      albumID,
 		Title:        title,
 		AudioURL:     audioURL,
+		ImageURL:     imageURL,
 		DurationSec:  input.DurationSec,
 		IsPublic:     isPublic,
 		PlayCount:    0,
@@ -146,6 +158,15 @@ func (s *trackService) Update(ctx context.Context, id uuid.UUID, input UpdateTra
 			return nil, ErrInvalidInput
 		}
 		track.AudioURL = audioURL
+	}
+
+	if input.ImageURL != nil {
+		value := strings.TrimSpace(*input.ImageURL)
+		if value == "" {
+			track.ImageURL = nil
+		} else {
+			track.ImageURL = &value
+		}
 	}
 
 	if input.DurationSec != nil {
