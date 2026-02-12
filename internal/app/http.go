@@ -29,6 +29,7 @@ func NewHTTP(db *gorm.DB, redisClient *redis.Client, authCfg config.AuthConfig, 
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
+	r.Use(middleware.GlobalRateLimit(redisClient))
 
 	h := handler.New(db)
 	api := r.Group("/api")
