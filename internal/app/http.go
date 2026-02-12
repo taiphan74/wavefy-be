@@ -39,8 +39,7 @@ func NewHTTP(db *gorm.DB, redisClient *redis.Client, authCfg config.AuthConfig, 
 	protected := api.Group("")
 	protected.Use(middleware.JWTAuth(authCfg))
 	registerUserRoutes(protected, db)
-	registerTrackRoutes(protected, db)
-	registerUploadRoutes(protected, r2Client, r2Cfg)
+	registerTrackRoutes(protected, db, r2Client, r2Cfg)
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

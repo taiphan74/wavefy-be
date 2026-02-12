@@ -1,7 +1,6 @@
 package dto
 
-type PresignPutRequest struct {
-	Key          string `json:"key" binding:"required"`
+type PresignTrackPutRequest struct {
 	ContentType  string `json:"content_type"`
 	ExpiresInSec *int   `json:"expires_in_sec"`
 }
