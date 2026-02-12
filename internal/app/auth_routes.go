@@ -8,6 +8,7 @@ import (
 	"wavefy-be/config"
 	"wavefy-be/internal/handler"
 	"wavefy-be/internal/mail"
+	"wavefy-be/internal/middleware"
 	"wavefy-be/internal/repository"
 	"wavefy-be/internal/service"
 	"wavefy-be/internal/token"
@@ -24,7 +25,7 @@ func registerAuthRoutes(rg *gin.RouterGroup, db *gorm.DB, redisClient *redis.Cli
 	authHandler := handler.NewAuthHandler(authService, cfg)
 
 	rg.POST("/auth/register", authHandler.Register)
-	rg.POST("/auth/login", authHandler.Login)
+	rg.POST("/auth/login", middleware.LoginRateLimit(redisClient), authHandler.Login)
 	rg.POST("/auth/refresh", authHandler.Refresh)
 	rg.POST("/auth/logout", authHandler.Logout)
 	rg.POST("/auth/forgot-password", authHandler.ForgotPassword)
