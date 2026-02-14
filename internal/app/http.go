@@ -18,7 +18,7 @@ import (
 )
 
 // NewHTTP khởi tạo router.
-func NewHTTP(db *gorm.DB, redisClient *redis.Client, authCfg config.AuthConfig, mailer *mail.Service, r2Client *s3.Client, r2Cfg config.R2Config) *gin.Engine {
+func NewHTTP(db *gorm.DB, redisClient *redis.Client, authCfg config.AuthConfig, googleCfg config.GoogleOAuthConfig, mailer *mail.Service, r2Client *s3.Client, r2Cfg config.R2Config) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
 	r.Use(cors.New(cors.Config{
@@ -35,7 +35,7 @@ func NewHTTP(db *gorm.DB, redisClient *redis.Client, authCfg config.AuthConfig, 
 	api := r.Group("/api")
 	api.GET("/health", h.Health)
 	api.GET("/db/ping", h.DBPing)
-	registerAuthRoutes(api, db, redisClient, authCfg, mailer)
+	registerAuthRoutes(api, db, redisClient, authCfg, googleCfg, mailer)
 
 	protected := api.Group("")
 	protected.Use(middleware.JWTAuth(authCfg))

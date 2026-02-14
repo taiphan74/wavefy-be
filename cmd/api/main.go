@@ -53,7 +53,7 @@ func main() {
 		panic(err)
 	}
 
-	server := app.NewHTTP(conn, redisClient, cfg.Auth, mailer, r2Client, cfg.R2)
+	server := app.NewHTTP(conn, redisClient, cfg.Auth, cfg.Google, mailer, r2Client, cfg.R2)
 	if err := server.Run(":" + cfg.Port); err != nil {
 		panic(err)
 	}

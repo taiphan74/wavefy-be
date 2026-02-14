@@ -10,6 +10,11 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+type GoogleLoginRequest struct {
+	IDToken    string `json:"id_token"`
+	Credential string `json:"credential"`
+}
+
 type ForgotPasswordRequest struct {
 	Email string `json:"email" binding:"required,email"`
 }

@@ -122,6 +122,60 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
+// GoogleLogin godoc
+// @Summary      Login with Google
+// @Description  Verify Google credential and issue internal tokens
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.GoogleLoginRequest true "Google login"
+// @Success      200 {object} helper.Response{data=dto.AuthResponse}
+// @Failure      400 {object} helper.Response
+// @Failure      401 {object} helper.Response
+// @Failure      503 {object} helper.Response
+// @Failure      500 {object} helper.Response
+// @Router       /auth/google [post]
+func (h *AuthHandler) GoogleLogin(c *gin.Context) {
+	var req dto.GoogleLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.RespondError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	credential := strings.TrimSpace(req.IDToken)
+	if credential == "" {
+		credential = strings.TrimSpace(req.Credential)
+	}
+	if credential == "" {
+		helper.RespondError(c, http.StatusBadRequest, "missing google credential")
+		return
+	}
+
+	user, token, err := h.service.LoginWithGoogle(c.Request.Context(), credential)
+	if err != nil {
+		switch err {
+		case service.ErrInvalidInput:
+			helper.RespondError(c, http.StatusBadRequest, err.Error())
+		case service.ErrInvalidCredentials:
+			helper.RespondError(c, http.StatusUnauthorized, err.Error())
+		case service.ErrGoogleNotConfigured:
+			helper.RespondError(c, http.StatusServiceUnavailable, err.Error())
+		default:
+			helper.RespondError(c, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	h.setRefreshCookie(c, token.RefreshToken)
+
+	helper.RespondOK(c, dto.AuthResponse{
+		AccessToken: token.AccessToken,
+		TokenType:   token.TokenType,
+		ExpiresAt:   token.ExpiresAt.Format(time.RFC3339),
+		User:        mapUserResponse(user),
+	})
+}
+
 // Refresh godoc
 // @Summary      Refresh access token
 // @Description  Rotate refresh token and issue a new access token

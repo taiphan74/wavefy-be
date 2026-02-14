@@ -16,7 +16,7 @@ import (
 	"wavefy-be/internal/token"
 )
 
-func registerAuthRoutes(rg *gin.RouterGroup, db *gorm.DB, redisClient *redis.Client, cfg config.AuthConfig, mailer *mail.Service) {
+func registerAuthRoutes(rg *gin.RouterGroup, db *gorm.DB, redisClient *redis.Client, cfg config.AuthConfig, googleCfg config.GoogleOAuthConfig, mailer *mail.Service) {
 	userRepo := repository.NewUserRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
 	userService := service.NewUserService(userRepo, roleRepo)
@@ -24,11 +24,12 @@ func registerAuthRoutes(rg *gin.RouterGroup, db *gorm.DB, redisClient *redis.Cli
 	resetStore := token.NewPasswordResetTokenStore(redisClient, cfg.PasswordResetSecret, cfg.PasswordResetTTL)
 	verifyStore := token.NewVerifyEmailTokenStore(redisClient, cfg.VerifyEmailSecret, cfg.VerifyEmailTTL)
 	loginStore := token.NewLoginAttemptStore(redisClient, 10*time.Minute, 15*time.Minute, 10)
-	authService := service.NewAuthService(userService, userRepo, roleRepo, refreshStore, resetStore, verifyStore, loginStore, mailer, cfg)
+	authService := service.NewAuthService(userService, userRepo, roleRepo, refreshStore, resetStore, verifyStore, loginStore, mailer, cfg, googleCfg)
 	authHandler := handler.NewAuthHandler(authService, cfg)
 
 	rg.POST("/auth/register", authHandler.Register)
 	rg.POST("/auth/login", middleware.LoginRateLimit(redisClient), authHandler.Login)
+	rg.POST("/auth/google", middleware.LoginRateLimit(redisClient), authHandler.GoogleLogin)
 	rg.POST("/auth/refresh", authHandler.Refresh)
 	rg.POST("/auth/logout", authHandler.Logout)
 	rg.POST("/auth/forgot-password", authHandler.ForgotPassword)

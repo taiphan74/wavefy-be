@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/api/idtoken"
 	"gorm.io/gorm"
 
 	"wavefy-be/config"
@@ -19,17 +20,19 @@ import (
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrInvalidResetToken  = errors.New("invalid reset token")
-	ErrMailNotConfigured  = errors.New("mail not configured")
-	ErrInvalidVerifyToken = errors.New("invalid verify token")
-	ErrEmailNotVerified   = errors.New("email not verified")
-	ErrTooManyAttempts    = errors.New("too many login attempts")
+	ErrInvalidCredentials  = errors.New("invalid credentials")
+	ErrInvalidResetToken   = errors.New("invalid reset token")
+	ErrMailNotConfigured   = errors.New("mail not configured")
+	ErrInvalidVerifyToken  = errors.New("invalid verify token")
+	ErrEmailNotVerified    = errors.New("email not verified")
+	ErrTooManyAttempts     = errors.New("too many login attempts")
+	ErrGoogleNotConfigured = errors.New("google auth not configured")
 )
 
 type AuthService interface {
 	Register(ctx context.Context, input CreateUserInput) (*model.User, *AuthToken, error)
 	Login(ctx context.Context, input LoginInput) (*model.User, *AuthToken, error)
+	LoginWithGoogle(ctx context.Context, credential string) (*model.User, *AuthToken, error)
 	Refresh(ctx context.Context, refreshToken string) (*model.User, *AuthToken, error)
 	Logout(ctx context.Context, refreshToken string) error
 	ForgotPassword(ctx context.Context, email string) error
@@ -59,9 +62,10 @@ type authService struct {
 	loginStore   token.LoginAttemptStore
 	mailer       *mail.Service
 	cfg          config.AuthConfig
+	googleCfg    config.GoogleOAuthConfig
 }
 
-func NewAuthService(userService UserService, userRepo repository.UserRepository, roleRepo repository.RoleRepository, refreshStore token.RefreshTokenStore, resetStore token.PasswordResetTokenStore, verifyStore token.VerifyEmailTokenStore, loginStore token.LoginAttemptStore, mailer *mail.Service, cfg config.AuthConfig) AuthService {
+func NewAuthService(userService UserService, userRepo repository.UserRepository, roleRepo repository.RoleRepository, refreshStore token.RefreshTokenStore, resetStore token.PasswordResetTokenStore, verifyStore token.VerifyEmailTokenStore, loginStore token.LoginAttemptStore, mailer *mail.Service, cfg config.AuthConfig, googleCfg config.GoogleOAuthConfig) AuthService {
 	return &authService{
 		userService:  userService,
 		userRepo:     userRepo,
@@ -72,6 +76,7 @@ func NewAuthService(userService UserService, userRepo repository.UserRepository,
 		loginStore:   loginStore,
 		mailer:       mailer,
 		cfg:          cfg,
+		googleCfg:    googleCfg,
 	}
 }
 
@@ -169,6 +174,91 @@ func (s *authService) Login(ctx context.Context, input LoginInput) (*model.User,
 		return nil, nil, err
 	}
 	user.Role = *role
+	accessToken, expiresAt, err := token.IssueAccessToken(s.cfg, user.ID.String(), role.Name)
+	if err != nil {
+		return nil, nil, err
+	}
+	authToken := &AuthToken{
+		AccessToken: accessToken,
+		ExpiresAt:   expiresAt,
+		TokenType:   "Bearer",
+	}
+	refreshToken, err := s.refreshStore.Create(ctx, user.ID.String())
+	if err != nil {
+		return nil, nil, err
+	}
+	authToken.RefreshToken = refreshToken
+	return user, authToken, nil
+}
+
+func (s *authService) LoginWithGoogle(ctx context.Context, credential string) (*model.User, *AuthToken, error) {
+	credential = strings.TrimSpace(credential)
+	if credential == "" {
+		return nil, nil, ErrInvalidInput
+	}
+	if strings.TrimSpace(s.googleCfg.ClientID) == "" {
+		return nil, nil, ErrGoogleNotConfigured
+	}
+
+	payload, err := idtoken.Validate(ctx, credential, s.googleCfg.ClientID)
+	if err != nil {
+		return nil, nil, ErrInvalidCredentials
+	}
+
+	email := normalizeEmail(getStringClaim(payload.Claims, "email"))
+	if email == "" {
+		return nil, nil, ErrInvalidCredentials
+	}
+	if !getBoolClaim(payload.Claims, "email_verified") {
+		return nil, nil, ErrInvalidCredentials
+	}
+
+	user, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, err
+		}
+
+		role, roleErr := s.roleRepo.GetByName(ctx, "USER")
+		if roleErr != nil {
+			if errors.Is(roleErr, gorm.ErrRecordNotFound) {
+				return nil, nil, ErrInvalidInput
+			}
+			return nil, nil, roleErr
+		}
+
+		passwordSeed := uuid.NewString()
+		hash, hashErr := bcrypt.GenerateFromPassword([]byte(passwordSeed), bcrypt.DefaultCost)
+		if hashErr != nil {
+			return nil, nil, hashErr
+		}
+
+		user = &model.User{
+			ID:           uuid.New(),
+			FirstName:    strings.TrimSpace(getStringClaim(payload.Claims, "given_name")),
+			LastName:     strings.TrimSpace(getStringClaim(payload.Claims, "family_name")),
+			Email:        email,
+			PasswordHash: string(hash),
+			IsActive:     true,
+			RoleID:       role.ID,
+			Role:         *role,
+		}
+		if createErr := s.userRepo.Create(ctx, user); createErr != nil {
+			return nil, nil, createErr
+		}
+	} else if !user.IsActive {
+		user.IsActive = true
+		if updateErr := s.userRepo.Update(ctx, user); updateErr != nil {
+			return nil, nil, updateErr
+		}
+	}
+
+	role, err := s.roleRepo.GetByID(ctx, user.RoleID)
+	if err != nil {
+		return nil, nil, err
+	}
+	user.Role = *role
+
 	accessToken, expiresAt, err := token.IssueAccessToken(s.cfg, user.ID.String(), role.Name)
 	if err != nil {
 		return nil, nil, err
@@ -370,4 +460,38 @@ func (s *authService) sendVerifyEmail(ctx context.Context, user *model.User) err
 		return err
 	}
 	return nil
+}
+
+func getStringClaim(claims map[string]interface{}, key string) string {
+	if claims == nil {
+		return ""
+	}
+	value, ok := claims[key]
+	if !ok {
+		return ""
+	}
+	str, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	return str
+}
+
+func getBoolClaim(claims map[string]interface{}, key string) bool {
+	if claims == nil {
+		return false
+	}
+	value, ok := claims[key]
+	if !ok {
+		return false
+	}
+	boolean, ok := value.(bool)
+	if !ok {
+		return false
+	}
+	return boolean
+}
+
+func normalizeEmail(email string) string {
+	return strings.TrimSpace(strings.ToLower(email))
 }
