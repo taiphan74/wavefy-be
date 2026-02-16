@@ -565,16 +565,20 @@ func mapTrackResponse(track *model.Track) dto.TrackResponse {
 	}
 
 	return dto.TrackResponse{
-		ID:           track.ID.String(),
-		ArtistUserID: track.ArtistUserID.String(),
-		AlbumID:      albumID,
-		Title:        track.Title,
-		AudioURL:     track.AudioURL,
-		ImageURL:     track.ImageURL,
-		DurationSec:  track.DurationSec,
-		IsPublic:     track.IsPublic,
-		PlayCount:    track.PlayCount,
-		CreatedAt:    track.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:    track.UpdatedAt.Format(time.RFC3339),
+		ID: track.ID.String(),
+		Artist: dto.TrackArtistResponse{
+			ID:        track.ArtistUserID.String(),
+			FirstName: track.ArtistUser.FirstName,
+			LastName:  track.ArtistUser.LastName,
+		},
+		AlbumID:     albumID,
+		Title:       track.Title,
+		AudioURL:    track.AudioURL,
+		ImageURL:    track.ImageURL,
+		DurationSec: track.DurationSec,
+		IsPublic:    track.IsPublic,
+		PlayCount:   track.PlayCount,
+		CreatedAt:   track.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   track.UpdatedAt.Format(time.RFC3339),
 	}
 }

@@ -31,7 +31,7 @@ func (r *trackRepository) Create(ctx context.Context, track *model.Track) error 
 
 func (r *trackRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.Track, error) {
 	var track model.Track
-	err := r.db.WithContext(ctx).First(&track, "id = ?", id).Error
+	err := r.db.WithContext(ctx).Preload("ArtistUser").First(&track, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (r *trackRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.Tra
 
 func (r *trackRepository) List(ctx context.Context, limit, offset int) ([]model.Track, error) {
 	var tracks []model.Track
-	err := r.db.WithContext(ctx).Limit(limit).Offset(offset).Order("created_at desc").Find(&tracks).Error
+	err := r.db.WithContext(ctx).Preload("ArtistUser").Limit(limit).Offset(offset).Order("created_at desc").Find(&tracks).Error
 	return tracks, err
 }
 

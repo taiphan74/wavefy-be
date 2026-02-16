@@ -54,7 +54,8 @@ func (s *trackService) Create(ctx context.Context, input CreateTrackInput) (*mod
 		return nil, ErrInvalidInput
 	}
 
-	if _, err := s.userRepo.GetByID(ctx, artistID); err != nil {
+	artist, err := s.userRepo.GetByID(ctx, artistID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrInvalidInput
 		}
@@ -104,6 +105,7 @@ func (s *trackService) Create(ctx context.Context, input CreateTrackInput) (*mod
 	track := &model.Track{
 		ID:           uuid.New(),
 		ArtistUserID: artistID,
+		ArtistUser:   *artist,
 		AlbumID:      albumID,
 		Title:        title,
 		AudioURL:     audioURL,
